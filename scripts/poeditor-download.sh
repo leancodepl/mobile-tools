@@ -7,12 +7,12 @@ stringsFile="../lib/l10n/strings.dart"
 mainLang="pl"
 langs=("pl") # ("pl" "en" "de") etc
 
-pushd `dirname $0`
+pushd "$(dirname $0)"
 
 mkdir -p $translationsDir
-mkdir -p `dirname $stringsFile`
+mkdir -p "$(dirname $stringsFile)"
 
-for lang in ${langs[@]}; do
+for lang in "${langs[@]}"; do
     url=`curl -sS -X POST https://api.poeditor.com/v2/projects/export \
         -d api_token=$POEDITOR_TOKEN \
         -d id="$poeditorProjectId" \
