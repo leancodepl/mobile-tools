@@ -13,14 +13,14 @@ mkdir -p $translationsDir
 mkdir -p "$(dirname $stringsFile)"
 
 for lang in "${langs[@]}"; do
-    url=`curl -sS -X POST https://api.poeditor.com/v2/projects/export \
-        -d api_token=$POEDITOR_TOKEN \
+    url=$(curl -sS -X POST https://api.poeditor.com/v2/projects/export \
+        -d api_token="$POEDITOR_TOKEN" \
         -d id="$poeditorProjectId" \
         -d language="$lang" \
         -d type="key_value_json" \
-    | jq '.result.url'`
+    | jq '.result.url')
 
-    curl -sS ${url//\"} -o "$translationsDir$lang.json"
+    curl -sS "${url//\"}" -o "$translationsDir$lang.json"
 done
 
 # generate Strings class from JSON
@@ -29,10 +29,10 @@ echo "" >> $stringsFile
 echo "class Strings {" >> $stringsFile
 
 # workaround for https://stackoverflow.com/a/47576101/7009800 
-HEAD=head
+HEAD="head"
 echo 'test' | head -n -1 &> /dev/null
 if [ "$?" -ne 0 ]; then
-    HEAD=ghead
+    HEAD="ghead"
 fi
 
 jq 'keys' "$translationsDir$mainLang.json" \
