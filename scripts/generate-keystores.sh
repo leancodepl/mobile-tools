@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IFS=$'\n\t'
 
 # adapted from: https://leancode.atlassian.net/wiki/spaces/LEAN/pages/1293844508/Android+signing+policy
 

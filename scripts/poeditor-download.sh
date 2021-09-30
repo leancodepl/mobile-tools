@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Set the variables below according to your needs
 poeditorProjectId="355089"
