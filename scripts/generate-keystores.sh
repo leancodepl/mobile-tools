@@ -25,7 +25,6 @@ gen_key() {
     -noprompt
 }
 
-
 gen_key "$app_name" "LeanCode" "tst"
 gen_key "$app_name" "$owner" "prod"
 gen_key "$app_name" "$owner" "prod_upload"

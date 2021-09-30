@@ -53,7 +53,6 @@ jq 'keys' "$translationsDir/$mainLang.json" \
 | awk -F'"' '{ name = $2; gsub(/\./, "_", name); printf "    static const %s = '"'"'%s'"'"';\n", name, $2 }' \
 >> "$stringsFile"
 
-
 echo "}" >> "$stringsFile"
 
 dart format $stringsFile >& /dev/null
