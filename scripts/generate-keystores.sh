@@ -5,14 +5,14 @@ IFS=$'\n\t'
 # adapted from: https://leancode.atlassian.net/wiki/spaces/LEAN/pages/1293844508/Android+signing+policy
 
 app_name="$1"
-owner="$2" # used for prod and prod_upload
+owner="$2"
 
 echo "Creating keystore for app $app_name with owner $owner"
 
 gen_key() {
     app_name="$1"
-    owner="$2" # default: LeanCode
-    flavor="$3" # {tst, prod, prod_upload}
+    owner="$2"
+    flavor="$3"
     
     echo "Generating $flavor key for $app_name:"
     
