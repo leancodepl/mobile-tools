@@ -23,7 +23,7 @@ for lang in "${langs[@]}"; do
 done
 
 # generate Strings class from JSON
-echo "// ignore_for_file: lines_longer_than_80_chars,constant_identifier_names" > $stringsFile
+echo "// ignore_for_file: constant_identifier_names" > $stringsFile
 echo "" >> "$stringsFile"
 echo "class Strings {" >> "$stringsFile"
 
@@ -43,3 +43,5 @@ jq 'keys' "$translationsDir/$mainLang.json" \
 
 
 echo "}" >> "$stringsFile"
+
+dart format $stringsFile >& /dev/null
