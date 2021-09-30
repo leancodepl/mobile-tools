@@ -8,12 +8,24 @@ stringsFile="./lib/l10n/strings.dart"
 mainLang="pl"
 langs=("pl") # ("pl" "en" "de") etc
 
-mkdir -p $translationsDir
-mkdir -p $(dirname "$stringsFile")
+mkdir -p "$translationsDir"
+mkdir -p "$(dirname "$stringsFile")"
+
+set +u
+token="$POEDITOR_TOKEN"
+set -u
+
+if [ -z "$token" ]; then
+    token=$(cat "$HOME/.poeditor_token" 2> /dev/null || true)
+    if [ -z "$token" ]; then
+        echo "POEditor token is not set"
+        exit 1
+    fi
+fi
 
 for lang in "${langs[@]}"; do
     url=$(curl -sS -X POST https://api.poeditor.com/v2/projects/export \
-        -d api_token="$POEDITOR_TOKEN" \
+        -d api_token="$token" \
         -d id="$poeditorProjectId" \
         -d language="$lang" \
         -d type="key_value_json" \
@@ -27,12 +39,12 @@ echo "// ignore_for_file: constant_identifier_names" > $stringsFile
 echo "" >> "$stringsFile"
 echo "class Strings {" >> "$stringsFile"
 
-# workaround for https://stackoverflow.com/a/47576101/7009800 
+# workaround for https://stackoverflow.com/a/47576101/7009800
 if command -v ghead >& /dev/null
 then
-    head=ghead
+    head="ghead"
 else
-    head=head
+    head="head"
 fi
 
 jq 'keys' "$translationsDir/$mainLang.json" \
