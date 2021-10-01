@@ -39,16 +39,16 @@ for lang in "${langs[@]}"; do
 done
 
 # generate Strings class from JSON
-echo "// ignore_for_file: constant_identifier_names" > $stringsFile
+echo "// ignore_for_file: constant_identifier_names" > "stringsFile"
 echo "" >> "$stringsFile"
 echo "class Strings {" >> "$stringsFile"
 
 # workaround for https://stackoverflow.com/a/47576101/7009800
 if command -v ghead >& /dev/null
 then
-    head=ghead
+    head='ghead'
 else
-    head=head
+    head='head'
 fi
 
 jq 'keys' "$translationsDir/$mainLang.json" \
@@ -59,4 +59,4 @@ jq 'keys' "$translationsDir/$mainLang.json" \
 
 echo "}" >> "$stringsFile"
 
-dart format $stringsFile >& /dev/null
+dart format "$stringsFile" >& /dev/null
