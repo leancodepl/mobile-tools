@@ -14,11 +14,23 @@ All useful scripts gathered in one place.
 
 Generates `tst`, `prod` and `prod_upload` keystore (`.jks`) files.
 
+**App signing by Google Play**
+
+Upload created `prod` key instead of letting Google Play create one.
+
+Uploading keystore to Google is available when uploading the first build.
+
+**IMPORTANT!**
+Adding `prod_upload` key needs to be done in the same transaction!
+
+![](img/generate-keystores_1.png)
+![](img/generate-keystores_2.png)
+
 ### poeditor-download
 
 Downloads translations from POEditor and converts them to Dart code.
 
-Requires a `poeditor_config` file in the root of your mobile project.
+Requires an executable `poeditor_config` file in the root of your mobile project.
 
 ```sh
 #!/usr/bin/env bash
