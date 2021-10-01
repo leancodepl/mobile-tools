@@ -12,7 +12,9 @@ langs=($POEDITOR_LANGS) # e.g "pl en de"
 mkdir -p "$translationsDir"
 mkdir -p "$(dirname "$stringsFile")"
 
-token="{$POEDITOR_TOKEN:-}"
+set +u
+token="$POEDITOR_TOKEN"
+set -u
 
 if [ -z "$token" ]; then
     token=$(cat "$HOME/.poeditor_token" 2> /dev/null || true)
