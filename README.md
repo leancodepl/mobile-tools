@@ -2,18 +2,25 @@
 
 All useful scripts gathered in one place.
 
-### `poeditor_download`
+### generate-keystores
 
-Scaffold source script, to be placed in the root of your mobile project.
+Generates `tst`, `prod` and `prod_upload` keystore (`.jks`) files.
 
-`poeditor_config`
+### poeditor-download
+
+Downloads translations from POEditor and converts them to Dart code.
+
+Requires a `poeditor_config` file in the root of your mobile project.
 
 ```sh
-export POEDITOR_PROJECT_ID=123456
+#!/usr/bin/env bash
+
+export POEDITOR_PROJECT_ID=355089
 export POEDITOR_TRANSLATIONS_DIR=./assets/l10n
 export POEDITOR_STRINGS_FILE=./lib/l10n/strings.dart
 export POEDITOR_MAIN_LANG=pl
-export POEDITOR_LANGS="pl en de"
+export POEDITOR_LANGS=pl
+
 ```
 
 You also must provide a POEditor token to the script. You have 3 options:
