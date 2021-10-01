@@ -19,5 +19,5 @@ export POEDITOR_LANGS="pl en de"
 You also must provide a POEditor token to the script. You have 3 options:
 
 - `$ export POEDITOR_TOKEN="token here"`
-- `$ "token here" >> "$HOME/.poeditor_token"`
-- `$ "token here" >> "$HOME/.config/poeditor/token"` (XDG_CONFIG_HOME)
+- `$ echo "token here" > "$HOME/.config/poeditor/token"` (XDG_CONFIG_HOME)
+- `$ echo "token here" > "$HOME/.poeditor_token"`

@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source ./poeditor_config
+
 poeditorProjectId="$POEDITOR_PROJECT_ID" # e.g "355089"
 translationsDir="$POEDITOR_TRANSLATIONS_DIR" # e.g "./assets/l10n"
 stringsFile="$POEDITOR_STRINGS_FILE" # e.g "./lib/l10n/strings.dart"
 mainLang="$POEDITOR_MAIN_LANG" # e.g "pl"
-langs="$POEDITOR_LANGS" # e.g "pl en de"
+langs=($POEDITOR_LANGS) # e.g "pl en de"
 
 mkdir -p "$translationsDir"
 mkdir -p "$(dirname "$stringsFile")"
 
-set +u
-token="$POEDITOR_TOKEN"
-set -u
+token="{$POEDITOR_TOKEN:-}"
 
 if [ -z "$token" ]; then
-    token=$(cat "$HOME/.poeditor_token" 2> /dev/null || true)    
+    token=$(cat "$HOME/.poeditor_token" 2> /dev/null || true)
 fi
 
 if [ -z "$token" ]; then
-    token=$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/poeditor/token" 2> /dev/null || true)    
+    token=$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/poeditor/token" 2> /dev/null || true)
 fi
 
 if [ -z "$token" ]; then
