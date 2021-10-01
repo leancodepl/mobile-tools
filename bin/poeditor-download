@@ -16,7 +16,7 @@ token="$POEDITOR_TOKEN"
 set -u
 
 if [ -z "$token" ]; then
-    token=$(cat "$HOME/.poeditor_token" 2> /dev/null || true)
+    token=$(cat "${XDG_CONFIG:-$HOME/.config}/poeditor/token" 2> /dev/null || true)
     if [ -z "$token" ]; then
         echo "POEditor token is not set"
         exit 1
