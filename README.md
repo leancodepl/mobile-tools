@@ -2,6 +2,14 @@
 
 All useful scripts gathered in one place.
 
+### Install
+
+`$ brew tap leancodepl/tools`
+
+`$ brew install mobile-tools`
+
+## Programs
+
 ### generate-keystores
 
 Generates `tst`, `prod` and `prod_upload` keystore (`.jks`) files.
