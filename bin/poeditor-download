@@ -8,6 +8,8 @@ translationsDir="$POEDITOR_TRANSLATIONS_DIR" # e.g "./assets/l10n"
 stringsFile="$POEDITOR_STRINGS_FILE" # e.g "./lib/l10n/strings.dart"
 mainLang="$POEDITOR_MAIN_LANG" # e.g "pl"
 langs=($POEDITOR_LANGS) # e.g "pl en de"
+stringsNamespace="$POEDITOR_STRINGS_NAMESPACE" # e.g "Strings"
+extraDirectives="${POEDITOR_EXTRA_DIRECTIVES:-}" # e.g "export '../my_extensions.dart';"
 
 mkdir -p "$translationsDir"
 mkdir -p "$(dirname "$stringsFile")"
@@ -43,7 +45,8 @@ done
 # generate Strings class from JSON
 echo "// ignore_for_file: constant_identifier_names" > "$stringsFile"
 echo "" >> "$stringsFile"
-echo "class Strings {" >> "$stringsFile"
+echo "$extraDirectives" >> "$stringsFile"
+echo "class $stringsNamespace {" >> "$stringsFile"
 
 # workaround for https://stackoverflow.com/a/47576101/7009800
 if command -v ghead >& /dev/null
