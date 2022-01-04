@@ -30,6 +30,8 @@ Adding `prod_upload` key needs to be done in the same transaction!
 
 Downloads translations from POEditor and converts them to Dart code.
 
+Requires coreutils to work. `brew install coreutils`
+
 Requires an executable `poeditor_config` file in the root of your mobile project.
 
 ```sh
