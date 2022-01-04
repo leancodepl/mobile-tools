@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# Remember to install coreutils if you get error
+# "head: illegal line count -- -1"
+
 set -euo pipefail
 
 source ./poeditor_config
