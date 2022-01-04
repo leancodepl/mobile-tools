@@ -48,16 +48,8 @@ echo "" >> "$stringsFile"
 echo "$extraDirectives" >> "$stringsFile"
 echo "class $stringsNamespace {" >> "$stringsFile"
 
-# workaround for https://stackoverflow.com/a/47576101/7009800
-if command -v ghead >& /dev/null
-then
-    head='ghead'
-else
-    head='head'
-fi
-
 jq 'keys' "$translationsDir/$mainLang.json" \
-| $head -n -1 \
+| sed '$d' \
 | tail -n +2 \
 | awk -F'"' '{ name = $2; gsub(/\./, "_", name); printf "    static const %s = '"'"'%s'"'"';\n", name, $2 }' \
 >> "$stringsFile"
