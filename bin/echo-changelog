@@ -18,7 +18,7 @@ else
 
     latest_tag=$(git describe --tags --abbrev=0)
 
-    changelog="$(git log --pretty=format:" - %s [%an]" "$latest_tag"..HEAD)"  
+    changelog="$(git log --pretty=format:" - %s [%an]" "$latest_tag"..HEAD)"
 fi
 
 # Add branch info
