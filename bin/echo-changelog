@@ -41,7 +41,6 @@ fi
 # Output collected information
 echo "Committer: $(git log --pretty=format:"%ce" HEAD^..HEAD)"
 echo "Latest tag: $latest_tag"
-# echo "Previous tag: $previous_tag" # TODO: remove
 echo "Changelog:"
 echo "$changelog"
 
