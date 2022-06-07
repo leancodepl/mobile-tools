@@ -12,7 +12,7 @@ All useful scripts gathered in one place.
 
 ### generate-keystores
 
-Generates `tst`, `prod_upload`, and `prod` and keystore (`.jks`) files.
+Generates `tst`, `prod_upload`, and `prod` keystore (`.jks`) files.
 
 **App signing by Google Play**
 
