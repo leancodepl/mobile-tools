@@ -17,5 +17,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install shellcheck
+        run: sudo apt install shellcheck
+
       - name: Run tests with BATS
         run: ./test/bats/bin/bats test/*.bats
+
+      - name: Run shellcheck for changed files
+        run: shellcheck $(git diff --name-only master | grep "bin/*")
