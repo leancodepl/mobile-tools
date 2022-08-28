@@ -12,7 +12,6 @@ prefix="${3:-}"
 if [ -z "$package_name" ]; then
     echo "error: missing package name"
     exit 1
-
 fi
 
 if [ -z "$tag" ]; then
