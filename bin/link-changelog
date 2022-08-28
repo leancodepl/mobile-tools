@@ -20,6 +20,10 @@ if [ -z "$tag" ]; then
     exit 1
 fi
 
+if [ -n "$prefix" ]; then
+    tag="${tag//$prefix/}"
+fi
+
 version=$(echo "$tag" | cut -c 2- | sed 's/\.//g' | sed 's/\+//g')
 link="https://pub.dev/packages/$package_name/changelog#$version"
 echo "$link"
