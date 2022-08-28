@@ -10,12 +10,12 @@ tag="${2:-}"
 prefix="${3:-}"
 
 if [ -z "$package_name" ]; then
-    echo "error: missing package name"
+    echo "error: missing package name" 1>&2
     exit 1
 fi
 
 if [ -z "$tag" ]; then
-    echo "error: missing tag"
+    echo "error: missing tag" 1>&2
     exit 1
 fi
 
