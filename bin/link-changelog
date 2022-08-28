@@ -20,7 +20,7 @@ if [ -z "$tag" ]; then
 fi
 
 if [ -n "$prefix" ]; then
-    tag="${tag//$prefix/}"
+    tag="${tag#$prefix}"
 fi
 
 version=$(echo "${tag#v}" | tr -d '.+')
