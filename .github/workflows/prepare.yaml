@@ -25,4 +25,4 @@ jobs:
         run: ./test/bats/bin/bats test/*.bats
 
       - name: Run shellcheck for changed files
-        run: shellcheck $(git diff --name-only origin/master | grep "bin/*")
+        run: git diff --name-only -z origin/master bin/ | xargs -0 shellcheck
