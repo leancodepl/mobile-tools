@@ -19,7 +19,7 @@ jobs:
           submodules: recursive
 
       - name: Install shellcheck
-        run: sudo apt install shellcheck
+        run: sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y shellcheck
 
       - name: Run tests with BATS
         run: ./test/bats/bin/bats test/*.bats
