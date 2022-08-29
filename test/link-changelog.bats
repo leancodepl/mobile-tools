@@ -12,7 +12,7 @@ setup() {
 }
 
 @test "prints error when no tag" {
-    run link-changelog "$package_name"
+    run link-changelog some_package
     assert_failure "error: missing tag"
 }
 
