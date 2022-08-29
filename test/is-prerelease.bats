@@ -31,17 +31,17 @@ setup() {
     assert_output true
 }
 
-@test "correctly processes version with prefix" {
+@test "correctly processes version with prefix (1)" {
     run is-prerelease comms-v0.0.5 comms-
     assert_output true
 }
 
-@test "correctly processes version with prefix" {
-    run is-prerelease comms-v0.0.5 comms-
+@test "correctly processes version with prefix (2)" {
+    run is-prerelease flutter_comms-v0.1 flutter_comms-
     assert_output true
 }
 
-@test "correctly processes version with prefix" {
-    run is-prerelease comms-v0.0.5 comms-
-    assert_output true
+@test "correctly processes version with prefix (3)" {
+    run is-prerelease comms-v1.0.0 comms-
+    assert_output false
 }
