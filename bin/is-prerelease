@@ -1,20 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-tag="${1:-}"
-prefix="${2:-}"
+# is-prerelease prints "true" if the git tag denotes a prerelease version.
+# Prints "false" otherwise.
+#
+# It handles both simple git tags (starting with "v", e.g v0.2.5 or v4.2.0) and
+# prefixed git tags (e.g "flutter_comms-v0.0.5" or "leancode_lint-v1.3.0").
+#
+# Usage:
+#
+# $ is-prerelease <package_name> <git_tag>
+#
+# For example:
+#
+# $ is-prerelease some_single_package v0.7.3
+#
+# $ is-prerelease leancode_contracts leancode_contracts-v2.1.0
+
+package_name="${1:-}"
+tag="${2:-}"
+
+if [ -z "$package_name" ]; then
+    echo "error: missing package name" 1>&2
+    exit 1
+fi
 
 if [ -z "$tag" ]; then
     echo "error: missing tag" 1>&2
     exit 1
 fi
 
-version="$tag"
-
-if [ -n "$prefix" ]; then
-    version="${version#$prefix}"
-fi
-
+prefix="${package_name}-"
+version="${tag#$prefix}"
 version="${version#v}"
 
 if [[ "$version" == 0* ]]; then

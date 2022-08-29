@@ -6,42 +6,57 @@ setup() {
     PATH="$DIR/../bin:$PATH"
 }
 
-@test "prints error when no tag" {
+@test "prints error when no package name" {
     run is-prerelease
+    assert_failure "error: missing package name"
+}
+
+@test "prints error when no tag" {
+    run is-prerelease "$package_name"
     assert_failure "error: missing tag"
 }
 
 @test "correctly processes version (1)" {
-    run is-prerelease v1
+    run is-prerelease some_package v1
     assert_output false
 }
 
 @test "correctly processes version (2)" {
-    run is-prerelease v10
+    run is-prerelease some_package v10
     assert_output false
 }
 
 @test "correctly processes version (3)" {
-    run is-prerelease v1.0
+    run is-prerelease some_package v1.0
     assert_output false
 }
 
 @test "correctly processes version (4)" {
-    run is-prerelease v0.1
+    run is-prerelease some_package v1.0.0+17
+    assert_output false
+}
+
+@test "correctly processes version (5)" {
+    run is-prerelease some_package v0.1
+    assert_output true
+}
+
+@test "correctly processes version (6)" {
+    run is-prerelease some_package v0.7.5
     assert_output true
 }
 
 @test "correctly processes version with prefix (1)" {
-    run is-prerelease comms-v0.0.5 comms-
+    run is-prerelease comms comms-v0.0.5
     assert_output true
 }
 
 @test "correctly processes version with prefix (2)" {
-    run is-prerelease flutter_comms-v0.1 flutter_comms-
+    run is-prerelease flutter_comms flutter_comms-v0.1
     assert_output true
 }
 
 @test "correctly processes version with prefix (3)" {
-    run is-prerelease comms-v1.0.0 comms-
+    run is-prerelease flutter_comms flutter_comms-v1.0.0
     assert_output false
 }
