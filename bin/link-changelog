@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# link creates a link to changelog for the package's version on https://pub.dev.
+# link-changelog creates a link to changelog for the package's version on
+# https://pub.dev.
 #
 # It assumes that the git tag starts with "v".
 
