@@ -41,42 +41,22 @@ setup() {
     assert_output "https://pub.dev/packages/some_package/changelog#1422010"
 }
 
-@test "correctly processes prefixed git tag implicitly (1)" {
+@test "correctly processes prefixed git (1)" {
     run link-changelog maestro_cli maestro_cli-v1
     assert_output "https://pub.dev/packages/maestro_cli/changelog#1"
 }
 
-@test "correctly processes prefixed git tag implicitly (2)" {
+@test "correctly processes prefixed git (2)" {
     run link-changelog maestro_cli maestro_cli-v0.4.4
     assert_output "https://pub.dev/packages/maestro_cli/changelog#044"
 }
 
-@test "correctly processes prefixed git tag implicitly (3)" {
+@test "correctly processes prefixed git (3)" {
     run link-changelog maestro_cli maestro_cli-v0.4.4+3
     assert_output "https://pub.dev/packages/maestro_cli/changelog#0443"
 }
 
-@test "correctly processes prefixed git tag implicitly  (4)" {
+@test "correctly processes prefixed git (4)" {
     run link-changelog maestro_cli maestro_cli-v1.12.15+32
-    assert_output "https://pub.dev/packages/maestro_cli/changelog#1121532"
-}
-
-@test "correctly processes prefixed git tag explicitly (1)" {
-    run link-changelog maestro_cli maestro_cli-v1 maestro_cli-
-    assert_output "https://pub.dev/packages/maestro_cli/changelog#1"
-}
-
-@test "correctly processes prefixed git tag explicitly (2)" {
-    run link-changelog maestro_cli maestro_cli-v0.4.4 maestro_cli-
-    assert_output "https://pub.dev/packages/maestro_cli/changelog#044"
-}
-
-@test "correctly processes prefixed git tag explicitly (3)" {
-    run link-changelog maestro_cli maestro_cli-v0.4.4+3 maestro_cli-
-    assert_output "https://pub.dev/packages/maestro_cli/changelog#0443"
-}
-
-@test "correctly processes prefixed git tag explicitly (4)" {
-    run link-changelog maestro_cli maestro_cli-v1.12.15+32 maestro_cli-
     assert_output "https://pub.dev/packages/maestro_cli/changelog#1121532"
 }
