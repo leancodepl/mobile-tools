@@ -4,7 +4,8 @@ set -euo pipefail
 # link-changelog creates a link to changelog for the package's version on
 # https://pub.dev.
 #
-# It assumes that the git tag starts with "v".
+# It handles both simple git tags (starting with "v", e.g v0.2.5 or v4.2.0) and
+# prefixed git tags (e.g "flutter_comms-v0.0.5" or "leancode_lint-v1.3.0").
 
 package_name="${1:-}"
 tag="${2:-}"
@@ -20,10 +21,11 @@ if [ -z "$tag" ]; then
     exit 1
 fi
 
-if [ -n "$prefix" ]; then
-    tag="${tag#$prefix}"
+if [ -z "$prefix" ]; then
+    prefix="${package_name}-"
 fi
 
-version=$(echo "${tag#v}" | tr -d '.+')
+version="${tag#$prefix}"
+version=$(echo "${version#v}" | tr -d '.+')
 link="https://pub.dev/packages/$package_name/changelog#$version"
 echo "$link"
