@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tag="${1:-}"
+prefix="${2:-}"
+
+if [ -z "$tag" ]; then
+    echo "error: missing tag" 1>&2
+    exit 1
+fi
+
+version="$tag"
+
+if [ -n "$prefix" ]; then
+    version="${version#$prefix}"
+fi
+
+version="${version#v}"
+
+if [[ "$version" == 0* ]]; then
+    echo "true"
+else
+    echo "false"
+fi
