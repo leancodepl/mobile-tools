@@ -30,7 +30,7 @@ if [ -z "$tag" ]; then
     exit 1
 fi
 
-prefix="${package_name}-"
+prefix="${3:-${package_name}-}"
 version="${tag#$prefix}"
 version="${version#v}"
 version=$(echo "$version" | tr -d '.+')
