@@ -10,7 +10,10 @@ All useful scripts gathered in one place.
 
 ## Programs
 
-### generate-keystores
+To learn more about programs, see their source code. They should have an
+extensive comment at the top of the file.
+
+### generate-keystore
 
 Generates `tst`, `prod_upload`, and `prod` keystore (`.jks`) files.
 
