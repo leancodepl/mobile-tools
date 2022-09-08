@@ -42,7 +42,7 @@ setup() {
 }
 
 @test "correctly processes simple git tag (6)" {
-    run link_changelog bloc-v8.0.0-dev5
+    run link_changelog bloc-v8.0.0-dev.5
     assert_output "https://pub.dev/packages/bloc/changelog#800-dev5"
 }
 
@@ -91,7 +91,7 @@ setup() {
     assert_output "https://pub.dev/packages/some_package/changelog#1422010"
 }
 
-@test "correctly processes package name and prefixed git tag  (1)" {
+@test "correctly processes package name and prefixed git tag (1)" {
     run link_changelog maestro_cli v1
     assert_output "https://pub.dev/packages/maestro_cli/changelog#1"
 }
