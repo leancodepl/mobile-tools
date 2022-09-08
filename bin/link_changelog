@@ -13,9 +13,9 @@ set -euo pipefail
 #
 # For example:
 #
-# $ link_changelog some_single_package-v0.7.3
+# $ link_changelog some_single_package v0.7.3
 # 
-# $ link_changelog leancode_contracts-v2.1.0
+# $ link_changelog leancode_contracts v2.1.0
 #
 # $ link_changelog dispose_scope-v3.0.0-dev.1
 
