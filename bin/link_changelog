@@ -33,15 +33,15 @@ fi
 
 if [ -n "${package_name:-}" ]; then
     # package name + git tag
-    version="${tag#$package_name}"
+    version="${tag#"$package_name"}"
     version="${version#v}"
     version=$(echo "$version" | tr -d '.+')
     link="https://pub.dev/packages/$package_name/changelog#$version"
     echo "$link"
 else
     # only git tag
-    package_name="$(echo $tag | cut -d '-' -f 1)"
-    version="$(echo $tag | cut -d '-' -f 2)"
+    package_name="$(echo "$tag" | cut -d '-' -f 1)"
+    version="$(echo "$tag" | cut -d '-' -f 2)"
 
     if [ "$package_name" = "$version" ]; then
         echo "error: invalid version" 1>&2
