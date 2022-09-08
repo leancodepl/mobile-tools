@@ -41,7 +41,7 @@ if [ -n "${package_name:-}" ]; then
 else
     # only git tag
     package_name="$(echo "$tag" | cut -d '-' -f 1)"
-    version="$(echo "$tag" | cut -d '-' -f 2)"
+    version="$(echo "$tag" | cut -d '-' -f 2-)"
 
     if [ "$package_name" = "$version" ]; then
         echo "error: invalid version" 1>&2
