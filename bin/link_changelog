@@ -27,16 +27,23 @@ if [ -z "$tag" ]; then
     exit 1
 fi
 
-package_name="$(echo $tag | cut -d '-' -f 1)"
-version="$(echo $tag | cut -d '-' -f 2)"
+print_with_tag_only() {
+    package_name="$(echo $tag | cut -d '-' -f 1)"
+    version="$(echo $tag | cut -d '-' -f 2)"
 
-if [ "$package_name" = "$version" ]; then
-    echo "error: invalid version" 1>&2
-    exit 1
-fi
+    if [ "$package_name" = "$version" ]; then
+        echo "error: invalid version" 1>&2
+        exit 1
+    fi
 
-version="${version#v}"
-version_int=$(echo "$version" | tr -d '.+')
+    version="${version#v}"
+    version_int=$(echo "$version" | tr -d '.+')
 
-link="https://pub.dev/packages/$package_name/changelog#$version_int"
-echo "$link"
+    link="https://pub.dev/packages/$package_name/changelog#$version_int"
+    echo "$link"
+}
+
+print_with_name_and_tag() {
+    
+}
+
