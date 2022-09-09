@@ -38,7 +38,14 @@ else
     version="${version#v}"
 fi
 
-if [[ "$version" == 0* ]]; then
+suffix="$(echo "$version" | cut -d '-' -f 2-)"
+if [ "$suffix" = "$version" ]; then
+    suffix=""
+fi
+
+if [ -n "$suffix" ]; then
+    echo "true"
+elif [[ "$version" == 0* ]]; then
     echo "true"
 else
     echo "false"

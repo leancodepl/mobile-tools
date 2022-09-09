@@ -41,7 +41,7 @@ setup() {
     assert_output true
 }
 
-@test "correctly processes package name and version with prefix (1)" {
+@test "correctly processes package name and git tag (1)" {
     run is_prerelease comms comms-v0.0.5
     assert_output true
 }
@@ -54,6 +54,11 @@ setup() {
 @test "correctly processes package name and version with prefix (3)" {
     run is_prerelease flutter_comms flutter_comms-v1.0.0
     assert_output false
+}
+
+@test "correctly processes package name and version with prefix (4)" {
+    run is_prerelease flutter_comms flutter_comms-v1.1.0-beta.2
+    assert_output true
 }
 
 @test "correctly processes version" {
@@ -96,3 +101,7 @@ setup() {
     assert_output true
 }
 
+@test "correctly processes version with suffix (3)" {
+    run is_prerelease flutter_comms-v1.1.2-beta.10
+    assert_output true
+}
