@@ -17,12 +17,11 @@ set -euo pipefail
 #
 # $ is_prerelease leancode_contracts leancode_contracts-v2.1.0
 
-package_name="${1:-}"
-tag="${2:-}"
-
-if [ -z "$package_name" ]; then
-    echo "error: missing package name" 1>&2
-    exit 1
+if [ "$#" = 1 ]; then
+    tag="${1:-}"
+elif [ "$#" = 2 ]; then
+    package_name="${1:-}"
+    tag="${2:-}"
 fi
 
 if [ -z "$tag" ]; then
@@ -30,9 +29,14 @@ if [ -z "$tag" ]; then
     exit 1
 fi
 
-prefix="${3:-${package_name}-}"
-version="${tag#$prefix}"
-version="${version#v}"
+if [ -n "${package_name:-}" ]; then
+    # package name + git tag
+    version="${tag#"$package_name-v"}"
+    version="${version#v}"
+else
+    version="$(echo "$tag" | cut -d '-' -f 2-)"
+    version="${version#v}"
+fi
 
 if [[ "$version" == 0* ]]; then
     echo "true"

@@ -81,7 +81,7 @@ setup() {
     assert_output "https://pub.dev/packages/some_package/changelog#420"
 }
 
-@test "correctly processes spackage name and simple git tag (4)" {
+@test "correctly processes package name and simple git tag (4)" {
     run link_changelog some_package v4.2.0+1
     assert_output "https://pub.dev/packages/some_package/changelog#4201"
 }
