@@ -3,7 +3,7 @@ name: prepare
 on:
   push:
     branches: [master]
-    tags-ignore: ["v*"]
+    tags-ignore: ['v*']
   pull_request:
     branches: [master]
 
@@ -24,5 +24,5 @@ jobs:
       - name: Run tests with BATS
         run: ./test/bats/bin/bats test/*.bats
 
-      - name: Run shellcheck for changed files
-        run: git diff --name-only -z origin/master bin/ | xargs -0 shellcheck
+      - name: Run shellcheck
+        run: find ./bin -type f -print -exec shellcheck {} +
