@@ -1,6 +1,12 @@
 name: Release package to pub.dev
 description: >
   Release a new package version to pub.dev and link to it from GitHub Releases.
+
+inputs:
+  path:
+    description: Root directory of a Dart package
+    default: '.'
+
 runs:
   using: composite
 
@@ -29,6 +35,7 @@ runs:
     - name: Publish to pub.dev
       shell: bash
       run: >
+        cd "${{ inputs.path }}";
         if command -v flutter 1>/dev/null 2>&1; then
           flutter pub publish --force;
         else
