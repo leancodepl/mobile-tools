@@ -17,10 +17,13 @@ runs:
         repository: leancodepl/mobile-tools
         path: mobile-tools
 
+    - name: Add mobile-tools to .pubignore
+      shell: bash
+      run: echo "/mobile-tools/" >> .pubignore
+
     - name: Add mobile-tools to $PATH
       shell: bash
-      run: |
-        echo "$GITHUB_WORKSPACE/mobile-tools/bin" >> $GITHUB_PATH
+      run: echo "$GITHUB_WORKSPACE/mobile-tools/bin" >> $GITHUB_PATH
 
     - name: Export release metadata as environment variables
       shell: bash
