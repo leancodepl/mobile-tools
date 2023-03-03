@@ -7,6 +7,11 @@ inputs:
     description: Root directory of a Dart package
     default: '.'
 
+outputs:
+  release_notes:
+    description: URL of the release notes on pub.dev
+    value: ${{ steps.create_metadata.outputs.release_notes }}
+
 runs:
   using: composite
 
@@ -27,6 +32,12 @@ runs:
         tag=${{ github.ref_name }}
         echo "RELEASE_NOTES=$(link_changelog $tag)" >> $GITHUB_ENV
         echo "IS_PRERELEASE=$(is_prerelease $tag)" >> $GITHUB_ENV
+
+    - name: Set action output
+      id: create_metadata
+      shell: bash
+      run: |
+        echo "release_notes=${{ env.RELEASE_NOTES }}" >> $GITHUB_OUTPUT
 
     # If `flutter` command is not available, use `dart pub publish`
     # If `flutter` command is available, use `flutter pub publish`
