@@ -6,11 +6,17 @@ inputs:
   path:
     description: Root directory of a Dart package
     default: '.'
+  dry-run:
+    description: If true, --dry-run flag is passed to pub
+    default: 'false'
 
 outputs:
-  release_notes:
+  changelog_url:
     description: URL of the release notes on pub.dev
-    value: ${{ steps.create_metadata.outputs.release_notes }}
+    value: ${{ steps.create_metadata.outputs.changelog_url }}
+  prerelease:
+    description: Whether the published version is a prerelease ("true" or "false")
+    value: ${{ steps.create_metadata.outputs.prerelease }}
 
 runs:
   using: composite
@@ -29,15 +35,18 @@ runs:
     - name: Export release metadata as environment variables
       shell: bash
       run: |
-        tag=${{ github.ref_name }}
-        echo "RELEASE_NOTES=$(link_changelog $tag)" >> $GITHUB_ENV
-        echo "IS_PRERELEASE=$(is_prerelease $tag)" >> $GITHUB_ENV
+        tag="${{ github.ref_name }}"
+        changelog_url="$(link_changelog $tag)"
+        prerelease="$(is_prerelease $tag)"
+        echo "CHANGELOG_URL=$changelog_url" >> $GITHUB_ENV
+        echo "PRERELEASE=$prerelease" >> $GITHUB_ENV
 
     - name: Set action output
       id: create_metadata
       shell: bash
       run: |
-        echo "release_notes=${{ env.RELEASE_NOTES }}" >> $GITHUB_OUTPUT
+        echo "changelog_url=${{ env.CHANGELOG_URL }}" >> $GITHUB_OUTPUT
+        echo "prerelease=${{ env.PRERELEASE}}" >> $GITHUB_OUTPUT
 
     # If `flutter` command is not available, use `dart pub publish`
     # If `flutter` command is available, use `flutter pub publish`
@@ -45,16 +54,22 @@ runs:
     - name: Publish to pub.dev
       shell: bash
       run: >
+        args="";
+        if [ "${{ inputs.dry-run }}" = "true"]; then
+          args="--dry-run";
+        else
+          args="--force";
+        fi;
         cd "${{ inputs.path }}";
         if command -v flutter 1>/dev/null 2>&1; then
-          flutter pub publish --force;
+          flutter pub publish "$args";
         else
-          dart pub publish --force;
+          dart pub publish "$args";
         fi
 
     - name: Create release on GitHub
       uses: softprops/action-gh-release@v1
       with:
         name: ${{ github.ref_name }}
-        body: '[See changelog on pub.dev](${{ env.RELEASE_NOTES }})'
-        prerelease: ${{ env.IS_PRERELEASE }}
+        body: '[See changelog on pub.dev](${{ env.CHANGELOG_URL }})'
+        prerelease: ${{ env.PRERELEASE }}
