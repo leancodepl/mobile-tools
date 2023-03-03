@@ -11,9 +11,9 @@ inputs:
     default: 'false'
 
 outputs:
-  release_notes:
+  changelog_url:
     description: URL of the release notes on pub.dev
-    value: ${{ steps.create_metadata.outputs.release_notes }}
+    value: ${{ steps.create_metadata.outputs.changelog_url }}
   prerelease:
     description: Whether the published version is a prerelease ("true" or "false")
     value: ${{ steps.create_metadata.outputs.prerelease }}
@@ -45,7 +45,7 @@ runs:
       id: create_metadata
       shell: bash
       run: |
-        echo "release_notes=${{ env.CHANGELOG_URL }}" >> $GITHUB_OUTPUT
+        echo "changelog_url=${{ env.CHANGELOG_URL }}" >> $GITHUB_OUTPUT
         echo "prerelease=${{ env.PRERELEASE}}" >> $GITHUB_OUTPUT
 
     # If `flutter` command is not available, use `dart pub publish`
