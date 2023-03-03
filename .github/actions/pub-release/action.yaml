@@ -6,6 +6,9 @@ inputs:
   path:
     description: Root directory of a Dart package
     default: '.'
+  dry-run:
+    description: If true, --dry-run flag is passed to pub
+    default: 'false'
 
 outputs:
   release_notes:
@@ -45,11 +48,17 @@ runs:
     - name: Publish to pub.dev
       shell: bash
       run: >
+        args="";
+        if [ "${{ inputs.dry-run }}" = "true"]; then
+          args="--dry-run";
+        else
+          args="--force";
+        fi;
         cd "${{ inputs.path }}";
         if command -v flutter 1>/dev/null 2>&1; then
-          flutter pub publish --force;
+          flutter pub publish "$args";
         else
-          dart pub publish --force;
+          dart pub publish "$args";
         fi
 
     - name: Create release on GitHub
