@@ -10,7 +10,7 @@ inputs:
     description: Root directory of a Dart package
     default: '.'
   dry-run:
-    description: If true, --dry-run flag is passed to pub
+    description: If true, no package is published to pub.dev and no GitHub Release is created.
     default: 'false'
 
 outputs:
@@ -72,6 +72,7 @@ runs:
 
     - name: Create release on GitHub
       uses: softprops/action-gh-release@v1
+      if: inputs.dry-run == 'true'
       with:
         name: ${{ github.ref_name }}
         body: '[See changelog on pub.dev](${{ env.CHANGELOG_URL }})'
