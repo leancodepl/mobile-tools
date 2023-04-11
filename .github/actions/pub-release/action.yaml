@@ -42,13 +42,13 @@ runs:
       id: extract_package_name
       uses: mikefarah/yq@master
       with:
-        cmd: cat ${{ inputs.path }}/pubspec.yaml | yq '.name'
+        cmd: cat "${{ inputs.path }}/pubspec.yaml" | yq '.name'
 
     - name: Extract package version from pubspec
       id: extract_package_version
       uses: mikefarah/yq@master
       with:
-        cmd: cat ${{ inputs.path }}/pubspec.yaml | yq '.version'
+        cmd: cat "${{ inputs.path }}/pubspec.yaml" | yq '.version'
 
     - name: Export release metadata as environment variables
       shell: bash
