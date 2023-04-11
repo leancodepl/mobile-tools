@@ -16,6 +16,8 @@ set -euo pipefail
 # $ is_prerelease some_single_package v0.7.3
 #
 # $ is_prerelease leancode_contracts leancode_contracts-v2.1.0
+#
+# $ is_prerelease leancode_contracts 2.1.0 # the leading "v" can be ommitted
 
 if [ "$#" = 1 ]; then
     tag="${1:-}"

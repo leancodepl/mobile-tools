@@ -11,39 +11,49 @@ setup() {
     assert_failure "error: missing tag"
 }
 
-@test "correctly processes package name and version (1)" {
+@test "correctly processes package name and git tag (1)" {
     run is_prerelease some_package v1
     assert_output false
 }
 
-@test "correctly processes package name and version (2)" {
+@test "correctly processes package name and git tag (2)" {
     run is_prerelease some_package v10
     assert_output false
 }
 
-@test "correctly processes package name and version (3)" {
+@test "correctly processes package name and git tag (3)" {
     run is_prerelease some_package v1.0
     assert_output false
 }
 
-@test "correctly processes package name and version (4)" {
+@test "correctly processes package name and git tag (4)" {
     run is_prerelease some_package v1.0.0+17
     assert_output false
 }
 
-@test "correctly processes package name and version (5)" {
+@test "correctly processes package name and git tag (5)" {
     run is_prerelease some_package v0.1
     assert_output true
 }
 
-@test "correctly processes package name and version (6)" {
+@test "correctly processes package name and git tag (6)" {
     run is_prerelease some_package v0.7.5
     assert_output true
 }
 
-@test "correctly processes package name and git tag (1)" {
+@test "correctly processes package name and git tag (7)" {
     run is_prerelease comms comms-v0.0.5
     assert_output true
+}
+
+@test "correctly processes package name and version (1)" {
+    run is_prerelease some_package 0.7.5
+    assert_output true
+}
+
+@test "correctly processes package name and version (2)" {
+    run is_prerelease some_package 1.0.0
+    assert_output false
 }
 
 @test "correctly processes package name and version with prefix (2)" {

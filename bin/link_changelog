@@ -18,6 +18,8 @@ set -euo pipefail
 # $ link_changelog leancode_contracts v2.1.0
 #
 # $ link_changelog dispose_scope-v3.0.0-dev.1
+#
+# $ link_changelog dispose_scope 3.0.0-dev.1 # the leading "v" can be ommitted
 
 if [ "$#" = 1 ]; then
     tag="${1:-}"

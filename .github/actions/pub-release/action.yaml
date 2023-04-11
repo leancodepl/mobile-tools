@@ -1,24 +1,27 @@
-name: Release package to pub.dev
+name: Release package to pub.dev.
 description: >
   Release a new package version to pub.dev and link to it from GitHub Releases.
 
 inputs:
-  # TODO: Add "package_name" argument, in case the tag is not in the
-  # "package_name-v1.2.3" format. For example, packages not in monorepo often
-  # have tag in the form of "v1.2.3".
   path:
-    description: Root directory of a Dart package
+    description: Root directory of a Dart package.
     default: '.'
   dry-run:
     description: If true, no package is published to pub.dev and no GitHub Release is created.
     default: 'false'
 
 outputs:
+  package_name:
+    description: Name of the package.
+    value: ${{ steps.extract_package_name.outputs.result }}
+  package_version:
+    description: Version of the package.
+    value: ${{ steps.extract_package_version.outputs.result }}
   changelog_url:
-    description: URL of the release notes on pub.dev
+    description: URL of the package's release notes on pub.dev.
     value: ${{ steps.create_metadata.outputs.changelog_url }}
   prerelease:
-    description: Whether the published version is a prerelease ("true" or "false")
+    description: Whether the published version is a prerelease ("true" or "false").
     value: ${{ steps.create_metadata.outputs.prerelease }}
 
 runs:
@@ -35,12 +38,26 @@ runs:
       shell: bash
       run: echo "$GITHUB_WORKSPACE/mobile-tools/bin" >> $GITHUB_PATH
 
+    - name: Extract package name from pubspec
+      id: extract_package_name
+      uses: mikefarah/yq@master
+      with:
+        cmd: cat "${{ inputs.path }}/pubspec.yaml" | yq '.name'
+
+    - name: Extract package version from pubspec
+      id: extract_package_version
+      uses: mikefarah/yq@master
+      with:
+        cmd: cat "${{ inputs.path }}/pubspec.yaml" | yq '.version'
+
     - name: Export release metadata as environment variables
       shell: bash
       run: |
-        tag="${{ github.ref_name }}"
-        changelog_url="$(link_changelog $tag)"
-        prerelease="$(is_prerelease $tag)"
+        package_name=${{ steps.extract_package_name.outputs.result }}
+        package_version=${{ steps.extract_package_version.outputs.result }}
+
+        changelog_url="$(link_changelog "$package_name" "$package_version")"
+        prerelease="$(is_prerelease "$package_version")"
         echo "CHANGELOG_URL=$changelog_url" >> $GITHUB_ENV
         echo "PRERELEASE=$prerelease" >> $GITHUB_ENV
 
