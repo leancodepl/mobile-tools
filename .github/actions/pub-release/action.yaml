@@ -3,9 +3,6 @@ description: >
   Release a new package version to pub.dev and link to it from GitHub Releases.
 
 inputs:
-  # TODO: Add "package_name" argument, in case the tag is not in the
-  # "package_name-v1.2.3" format. For example, packages not in monorepo often
-  # have tag in the form of "v1.2.3".
   path:
     description: Root directory of a Dart package
     default: '.'
@@ -53,7 +50,6 @@ runs:
         package_name=${{ steps.extract_package_name.outputs.result }}
         package_version=${{ steps.extract_package_version.outputs.result }}
 
-        tag="${{ github.ref_name }}"
         changelog_url="$(link_changelog "$package_name" "$package_version")"
         prerelease="$(is_prerelease "$package_version")"
         echo "CHANGELOG_URL=$changelog_url" >> $GITHUB_ENV
