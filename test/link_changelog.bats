@@ -16,12 +16,17 @@ setup() {
     assert_failure "error: invalid tag"
 }
 
+@test "correctly processes simple version (1)" {
+    run link_changelog some_package 1.0.0+1
+    assert_output "https://pub.dev/packages/some_package/changelog#1001"
+}
+
 @test "correctly processes simple git tag (1)" {
     run link_changelog some_package-v1
     assert_output "https://pub.dev/packages/some_package/changelog#1"
 }
 
-@test "correctly processes simple  git tag (2)" {
+@test "correctly processes simple git tag (2)" {
     run link_changelog some_package-v1.0.0
     assert_output "https://pub.dev/packages/some_package/changelog#100"
 }

@@ -35,12 +35,27 @@ runs:
       shell: bash
       run: echo "$GITHUB_WORKSPACE/mobile-tools/bin" >> $GITHUB_PATH
 
+    - name: Extract package name from pubspec
+      id: extract_package_name
+      uses: mikefarah/yq@master
+      with:
+        cmd: cat ${{ inputs.path }}/pubspec.yaml | yq '.name'
+
+    - name: Extract package version from pubspec
+      id: extract_package_version
+      uses: mikefarah/yq@master
+      with:
+        cmd: cat ${{ inputs.path }}/pubspec.yaml | yq '.version'
+
     - name: Export release metadata as environment variables
       shell: bash
       run: |
+        package_name=${{ steps.extract_package_name.outputs.result }}
+        package_version=${{ steps.extract_package_version.outputs.result }}
+
         tag="${{ github.ref_name }}"
-        changelog_url="$(link_changelog $tag)"
-        prerelease="$(is_prerelease $tag)"
+        changelog_url="$(link_changelog "$package_name" "$package_version")"
+        prerelease="$(is_prerelease "$package_version")"
         echo "CHANGELOG_URL=$changelog_url" >> $GITHUB_ENV
         echo "PRERELEASE=$prerelease" >> $GITHUB_ENV
 
