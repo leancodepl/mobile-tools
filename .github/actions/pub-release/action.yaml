@@ -1,21 +1,27 @@
-name: Release package to pub.dev
+name: Release package to pub.dev.
 description: >
   Release a new package version to pub.dev and link to it from GitHub Releases.
 
 inputs:
   path:
-    description: Root directory of a Dart package
+    description: Root directory of a Dart package.
     default: '.'
   dry-run:
     description: If true, no package is published to pub.dev and no GitHub Release is created.
     default: 'false'
 
 outputs:
+  package_name:
+    description: Name of the package.
+    value: ${{ steps.extract_package_name.outputs.result }}
+  package_version:
+    description: Version of the package.
+    value: ${{ steps.extract_package_version.outputs.result }}
   changelog_url:
-    description: URL of the release notes on pub.dev
+    description: URL of the package's release notes on pub.dev.
     value: ${{ steps.create_metadata.outputs.changelog_url }}
   prerelease:
-    description: Whether the published version is a prerelease ("true" or "false")
+    description: Whether the published version is a prerelease ("true" or "false").
     value: ${{ steps.create_metadata.outputs.prerelease }}
 
 runs:
