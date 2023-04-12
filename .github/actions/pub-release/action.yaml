@@ -56,6 +56,9 @@ runs:
         package_name=${{ steps.extract_package_name.outputs.result }}
         package_version=${{ steps.extract_package_version.outputs.result }}
 
+        echo "package name: $package_name"
+        echo "package version: $package_version"
+
         changelog_url="$(link_changelog "$package_name" "$package_version")"
         prerelease="$(is_prerelease "$package_version")"
         echo "CHANGELOG_URL=$changelog_url" >> $GITHUB_ENV
