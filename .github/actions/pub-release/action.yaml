@@ -92,7 +92,7 @@ runs:
 
     - name: Create release on GitHub
       uses: softprops/action-gh-release@v1
-      if: inputs.dry-run == 'true'
+      if: inputs.dry-run == 'false'
       with:
         name: ${{ github.ref_name }}
         body: '[See changelog on pub.dev](${{ env.CHANGELOG_URL }})'
