@@ -2,6 +2,21 @@
 set -euo pipefail
 
 # bs_android uploads app binaries for UI testing on BrowserStack.
+#
+# It forwards all arguments to `patrol build android`, so you can pass --target,
+# --flavor, --exclude etc.
+#
+# It can also be configured with the following environment variables:
+
+BROWSERSTACK_CREDS="${BROWSERSTACK_CREDS:-}"
+BROWSERSTACK_PROJECT="${BROWSERSTACK_PROJECT:-}"
+BROWSERSTACK_DEVICES="${BROWSERSTACK_DEVICES:-}"
+
+# Capture all arguments because they'll be consumed by getopt
+# shellcheck disable=SC2206
+original_args=($@)
+
+# Arg parsing start
 
 FLAVOR=""
 FLAVOR_SUFFIXED="-"
@@ -11,8 +26,8 @@ TEMP=$(getopt -n "$0" -a -l "flavor:" -- -- "$@")
 eval set -- "$TEMP"
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--flavor) FLAVOR="$2" ;;
-	--) shift ;;
+	--flavor) FLAVOR="$2"; shift;;
+	--) shift;;
 	esac
 	shift
 done
@@ -23,23 +38,35 @@ if [ -n "$FLAVOR" ]; then
   FLAVOR_DIR="/$FLAVOR/"
 fi
 
-echo "$@"
+# Arg parsing end
 
 if [[ "$(patrol --version)" != *"v2"* ]]; then
 	echo "Error: patrol_cli v2 is required"
 	exit 1
 fi
 
-if [ -z "${CREDS:-}" ]; then
-    echo "Error: missing CREDS env var"
+if [ -z "${BROWSERSTACK_CREDS:-}" ]; then
+    echo "Error: missing BROWSERSTACK_CREDS env var"
     exit 1
 fi
 
-patrol build android $@
+if [ -z "${BROWSERSTACK_PROJECT:-}" ]; then
+    default_project="Unnamed project"
+    echo "Warning: missing BROWSERSTACK_PROJECT env var, falling back to default: $default_project"
+    BROWSERSTACK_PROJECT="Unnamed project"
+fi
+
+if [ -z "${BROWSERSTACK_DEVICES:-}" ]; then
+    default="[\"Google Pixel 4-10.0\"]"
+    echo "Warning: missing BROWSERSTACK_DEVICES env var, falling back to default: $default"
+    BROWSERSTACK_DEVICES="$default"
+fi
+
+patrol build android "${original_args[@]}"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app
 app_upload_response="$(
-	curl -u "$CREDS" \
+	curl -u "$BROWSERSTACK_CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/app" \
 		-F "file=@$PWD/build/app/outputs/apk${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug.apk"
 )"
@@ -49,7 +76,7 @@ echo "Uploaded app, url: $app_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite
 test_upload_response="$(
-	curl --silent -u "$CREDS" \
+	curl --silent -u "$BROWSERSTACK_CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite" \
 		-F "file=@$PWD/build/app/outputs/apk/androidTest${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug-androidTest.apk"
 )"
@@ -58,7 +85,7 @@ test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
 echo "Uploaded test, url: $test_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
-curl -u "$CREDS" \
+curl -u "$BROWSERSTACK_CREDS" \
   -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
   -H "Content-Type: application/json" \
   --data-binary @- <<EOF
@@ -74,4 +101,5 @@ curl -u "$CREDS" \
     "local": "false"
 }
 EOF
-echo "Scheduled test execution"
+
+printf "\nScheduled test execution"
