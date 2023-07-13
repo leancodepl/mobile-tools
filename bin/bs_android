@@ -92,8 +92,8 @@ curl -u "$BROWSERSTACK_CREDS" \
 {
     "app": "$app_url",
     "testSuite": "$test_url",
-    "project": "Patrol example app",
-    "devices": ["Google Pixel 4-10.0"],
+    "project": $BROWSERSTACK_PROJECT,
+    "devices": $BROWSERSTACK_DEVICES,
     "singleRunnerInvocation": "true",
     "useOrchestrator": "true",
     "clearPackageData": "true",
