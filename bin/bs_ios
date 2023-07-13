@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# bs_ios uploads app binaries for UI testing on BrowserStack.
+#
+# This version of the script works only with the V1 endpoint (no Test Plans).
+
+if [[ "$(patrol --version)" != *"v2"* ]]; then
+	echo "Error: patrol_cli v2 is required"
+	exit 1
+fi
+
+if [ -z "${CREDS:-}" ]; then
+    echo "Error: missing CREDS env var"
+    exit 1
+fi
+
+patrol build ios --release
+
+# BrowserStack says it requires .ipa, but actually we can simply zip the .app
+# and rename it.
+
+# TODO: zip the .app and rename it to .ipa
+
+app_upload_response="$(
+	curl -u "$CREDS" \
+		-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
+		-F "file=@$PWD/Runner.ipa"
+)"
+
+app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
+echo "Uploaded app, url: $app_url"
+
+echo "Will zip tests now"
+cd build/ios_integ/Build/Products/Release-iphoneos
+rm -f ios_tests.zip
+cp ../Runner_TestPlan_iphoneos*.xctestrun .
+zip -r ios_tests.zip Runner_TestPlan_iphoneos*.xctestrun RunnerUITests-Runner.app
+cd -
+
+test_upload_response="$(
+	curl -u "$CREDS" \
+		-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
+		-F "file=@$PWD/build/ios_integ/Build/Products/Release-iphoneos/ios_tests.zip"
+)"
+
+test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
+echo "Uploaded test, url: $test_url"
+
+echo "Will schedule test execution now"
+
+curl -u "$CREDS" \
+  -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
+  -H "Content-Type: application/json" \
+  --data-binary @- <<EOF
+{
+    "app": "$app_url",
+    "testSuite": "$test_url",
+    "project": "patrol_appium_comparison",
+    "devices": ["iPhone 14-16"]
+}
+EOF
+
+
+# "deviceLogs": "true", "dynamicTests": "true", "only-testing": [
+#     "RunnerUITests/RunnerUITests", ]
