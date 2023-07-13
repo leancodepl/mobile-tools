@@ -17,6 +17,7 @@ fi
 
 patrol build android
 
+# https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app
 app_upload_response="$(
 	curl -u "$CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/app" \
@@ -26,6 +27,7 @@ app_upload_response="$(
 app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
 echo "Uploaded app, url: $app_url"
 
+# https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite
 test_upload_response="$(
 	curl --silent -u "$CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite" \
@@ -35,20 +37,11 @@ test_upload_response="$(
 test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
 echo "Uploaded test, url: $test_url"
 
-echo "Will execute tests now"
-
-# Customize test selection by passing the "class" array. Example:
-#   "class": [
-#       "com.example.patrol_appium_comparison.MainActivityTest",
-#       "com.example.patrol_appium_comparison.ExampleTest"
-#     ]
-
-request_execution() {
-  echo "Will schedule test execution, variant [$1, $2]"
-	curl -u "$CREDS" \
-		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
-		-H "Content-Type: application/json" \
-		--data-binary @- <<EOF
+# https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
+curl -u "$CREDS" \
+  -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
+  -H "Content-Type: application/json" \
+  --data-binary @- <<EOF
 {
     "app": "$app_url",
     "testSuite": "$test_url",
@@ -61,6 +54,4 @@ request_execution() {
     "local": "false"
 }
 EOF
-}
-
-request_execution ExampleTest MainActivityTest
+echo "Scheduled test execution"
