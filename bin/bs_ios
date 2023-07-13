@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "all args after parsing: $@"
+
 # bs_ios uploads app binaries for UI testing on BrowserStack.
 #
 # This version of the script works only with the V1 XCUITest API (no XC Test Plans).
@@ -11,8 +13,8 @@ if [[ "$(patrol --version)" != *"v2"* ]]; then
 fi
 
 if [ -z "${CREDS:-}" ]; then
-    echo "Error: missing CREDS env var"
-    exit 1
+	echo "Error: missing CREDS env var"
+	exit 1
 fi
 
 patrol build ios --release "$@"
@@ -59,9 +61,9 @@ echo "Will schedule test execution now"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build
 curl -u "$CREDS" \
-  -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/build" \
-  -H "Content-Type: application/json" \
-  --data-binary @- <<EOF
+	-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/build" \
+	-H "Content-Type: application/json" \
+	--data-binary @- <<EOF
 {
     "app": "$app_url",
     "testSuite": "$test_url",
