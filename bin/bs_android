@@ -64,21 +64,33 @@ fi
 
 patrol build android "${original_args[@]}"
 
+app_path="$PWD/build/app/outputs/apk${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug.apk"
+if [ ! -f "$app_path" ]; then
+  echo "Error: apk not found at $app_path"
+  exit 1
+fi
+
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app
 app_upload_response="$(
 	curl -u "$BROWSERSTACK_CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/app" \
-		-F "file=@$PWD/build/app/outputs/apk${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug.apk"
+		-F "file=@$app_path"
 )"
 
 app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
 echo "Uploaded app, url: $app_url"
 
+test_path="$PWD/build/app/outputs/apk/androidTest${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug-androidTest.apk"
+if [ ! -f "$test_path" ]; then
+  echo "Error: test apk not found at $test_path"
+  exit 1
+fi
+
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite
 test_upload_response="$(
 	curl --silent -u "$BROWSERSTACK_CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite" \
-		-F "file=@$PWD/build/app/outputs/apk/androidTest${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug-androidTest.apk"
+		-F "file=@$test_path"
 )"
 
 test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
