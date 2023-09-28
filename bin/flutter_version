@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# flutter_version parses the pubspec.yaml file and returns the minimum Flutter
+# version allowed by its version constraint. It's useful to keep the Flutter
+# version used by the project and one place (pubspec), and reuse it on CI.
+
+yq '.environment.flutter' pubspec.yaml
