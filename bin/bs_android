@@ -9,14 +9,14 @@ set -euo pipefail
 # It can also be configured with the following environment variables:
 BROWSERSTACK_CREDS="${BROWSERSTACK_CREDS:-}"
 BROWSERSTACK_PROJECT="${BROWSERSTACK_PROJECT:-}"
-BROWSERSTACK_DEVICES="${BROWSERSTACK_DEVICES:-}"
+BROWSERSTACK_ANDROID_DEVICES="${BROWSERSTACK_ANDROID_DEVICES:-}"
+BROWSERSTACK_SKIP_BUILD="${BROWSERSTACK_SKIP_BUILD:-}"
 
 # Capture all arguments because they'll be consumed by getopt
 # shellcheck disable=SC2206
 original_args=($@)
 
-# Arg parsing start
-
+# Argument parsing start
 FLAVOR=""
 FLAVOR_SUFFIXED="-"
 FLAVOR_DIR="/"
@@ -36,32 +36,30 @@ if [ -n "$FLAVOR" ]; then
   FLAVOR_SUFFIXED="-$FLAVOR-"
   FLAVOR_DIR="/$FLAVOR/"
 fi
+# Argument parsing end
 
-# Arg parsing end
-
-if [[ "$(patrol --version)" != *"v2"* ]]; then
-	echo "Error: patrol_cli v2 is required"
-	exit 1
-fi
-
-if [ -z "${BROWSERSTACK_CREDS:-}" ]; then
-    echo "Error: missing BROWSERSTACK_CREDS env var"
+if [ -z "$BROWSERSTACK_CREDS" ]; then
+    echo "Error: BROWSERSTACK_CREDS not set"
     exit 1
 fi
 
-if [ -z "${BROWSERSTACK_PROJECT:-}" ]; then
-    default_project="Unnamed project"
-    echo "Warning: missing BROWSERSTACK_PROJECT env var, falling back to default: $default_project"
-    BROWSERSTACK_PROJECT="Unnamed project"
+if [ -z "$BROWSERSTACK_PROJECT" ]; then
+    default_project="Unnamed Android project"
+    echo "BROWSERSTACK_PROJECT not set, using default: $default_project"
+    BROWSERSTACK_PROJECT="$default_project"
 fi
 
-if [ -z "${BROWSERSTACK_DEVICES:-}" ]; then
-    default="[\"Google Pixel 4-10.0\"]"
-    echo "Warning: missing BROWSERSTACK_DEVICES env var, falling back to default: $default"
-    BROWSERSTACK_DEVICES="$default"
+if [ -z "$BROWSERSTACK_ANDROID_DEVICES" ]; then
+    default_devices="[\"Google Pixel 4-10.0\"]"
+    echo "BROWSERSTACK_ANDROID_DEVICES not set, using default: $default_devices"
+    BROWSERSTACK_ANDROID_DEVICES="$default_devices"
 fi
 
-patrol build android "${original_args[@]}"
+if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
+  echo "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
+else
+  patrol build android "${original_args[@]}"
+fi
 
 app_path="$PWD/build/app/outputs/apk${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug.apk"
 if [ ! -f "$app_path" ]; then
@@ -70,6 +68,7 @@ if [ ! -f "$app_path" ]; then
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app
+printf "Will upload app under test from %s\n\n" "$app_path"
 app_upload_response="$(
 	curl -u "$BROWSERSTACK_CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/app" \
@@ -77,7 +76,7 @@ app_upload_response="$(
 )"
 
 app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
-echo "Uploaded app, url: $app_url"
+echo "Uploaded app under test, url: $app_url"
 
 test_path="$PWD/build/app/outputs/apk/androidTest${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug-androidTest.apk"
 if [ ! -f "$test_path" ]; then
@@ -86,6 +85,7 @@ if [ ! -f "$test_path" ]; then
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite
+printf "Will upload test instrumentation app from %s\n\n" "$test_path"
 test_upload_response="$(
 	curl --silent -u "$BROWSERSTACK_CREDS" \
 		-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite" \
@@ -93,9 +93,11 @@ test_upload_response="$(
 )"
 
 test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
-echo "Uploaded test, url: $test_url"
+echo "Uploaded test instrumentation app, url: $test_url"
+
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
+printf "Will schedule test execution\n\n"
 curl -u "$BROWSERSTACK_CREDS" \
   -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
   -H "Content-Type: application/json" \
@@ -104,7 +106,7 @@ curl -u "$BROWSERSTACK_CREDS" \
     "app": "$app_url",
     "testSuite": "$test_url",
     "project": "$BROWSERSTACK_PROJECT",
-    "devices": $BROWSERSTACK_DEVICES,
+    "devices": $BROWSERSTACK_ANDROID_DEVICES,
     "singleRunnerInvocation": "true",
     "useOrchestrator": "true",
     "clearPackageData": "true",
@@ -113,4 +115,4 @@ curl -u "$BROWSERSTACK_CREDS" \
 }
 EOF
 
-printf "\nScheduled test execution"
+printf "\n\nScheduled test execution\n"
