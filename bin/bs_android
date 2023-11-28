@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# bs_android uploads app binaries for UI testing on BrowserStack.
+# bs_android uploads APKs for UI testing on BrowserStack.
 #
-# It forwards all arguments to `patrol build android`, so you can pass --target,
-# --flavor, --exclude etc.
+# It forwards all arguments to "patrol build android", so you can pass --target,
+# --flavor, --exclude etc. just as you would pass them to "patrol_cli".
 #
 # It can also be configured with the following environment variables:
-
 BROWSERSTACK_CREDS="${BROWSERSTACK_CREDS:-}"
 BROWSERSTACK_PROJECT="${BROWSERSTACK_PROJECT:-}"
 BROWSERSTACK_DEVICES="${BROWSERSTACK_DEVICES:-}"
