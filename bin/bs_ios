@@ -4,103 +4,66 @@ set -euo pipefail
 # bs_ios.sh uploads app binaries for UI testing on BrowserStack.
 #
 # This version of the script works only with the V2 endpoint (XC Test Plans).
-# This scirpt assumes that Xcode Test Plan name is Patrol
+# This script assumes that Xcode Test Plan name is TestPlan.xctestplan.
 #
-# It forwards all arguments to `patrol build ios`, so you can pass --target,
-# --flavor, --exclude etc.
+# It forwards all arguments to "patrol build android", so you can pass --target,
+# --flavor, --exclude etc. just as you would pass them to "patrol_cli".
 #
 # It can also be configured with the following environment variables:
-
 BROWSERSTACK_CREDS="${BROWSERSTACK_CREDS:-}"
+BROWSERSTACK_PROJECT="${BROWSERSTACK_PROJECT:-}"
+BROWSERSTACK_ANDROID_DEVICES="${BROWSERSTACK_ANDROID_DEVICES:-}"
+BROWSERSTACK_SKIP_BUILD="${BROWSERSTACK_SKIP_BUILD:-}"
+BROWSERSTACK_IDLE_TIMEOUT="${BROWSERSTACK_IDLE_TIMEOUT:-}"
 
 # Capture all arguments because they'll be consumed by getopt
 # shellcheck disable=SC2206
 original_args=($@)
 
 # Arg parsing start
-
-# Function to get a value from a YAML config file
-get_config_value() {
-    local key="$1"
-    yq eval ".$key" "bs_config.yaml"
-}
-
-printf "Run configuration:\n"
-project_name=$(get_config_value "project_name")
-printf "\tProject name: %s\n" "$project_name"
-timeout=$(get_config_value "timeout")
-printf "\tTimeout (seconds): %s\n" "$timeout"
-ios_devices=$(get_config_value "ios_devices")
-printf "\tDevices: %s\n" "$ios_devices"
-
-# Define prefix and suffix for flavor
+FLAVOR=""
 FLAVOR_PREFIXED="Runner"
 FLAVOR_SUFFIXED="-"
-
-# Function to fetch flavor from given YAML path in pubspec.yaml
-get_flavor() {
-    local yaml_path=$1
-    yq "$yaml_path // \"\"" <pubspec.yaml
-}
-
-# Try to fetch the flavor from pubspec.yaml
-FLAVOR=$(get_flavor '.patrol.ios.flavor')
-if [ -z "$FLAVOR" ]; then
-    FLAVOR=$(get_flavor '.patrol.flavor')
-fi
 
 TEMP=$(getopt -n "$0" -a -l "flavor:" -- -- "$@")
 eval set -- "$TEMP"
 while [ $# -gt 0 ]; do
-    case "$1" in
-    --flavor)
-        if [ -z "${2:-}" ]; then
-            echo "Error: Argument missing after --flavor option" >&2
-            exit 1
-        fi
-        FLAVOR="$2"
-        shift
-        ;;
-    --) shift ;;
-    esac
-    shift
+	case "$1" in
+	--flavor) FLAVOR="$2"; shift;;
+	--) shift;;
+	esac
+	shift
 done
 
 if [ -n "$FLAVOR" ]; then
-    printf "\tFlavor: %s\n" "$FLAVOR"
+    echo "Passed flavor: $FLAVOR"
     FLAVOR_SUFFIXED="-$FLAVOR-"
     FLAVOR_PREFIXED="$FLAVOR"
-else
-    echo "Error: --flavor argument is required" >&2
-    exit 1
 fi
-
 # Arg parsing end
 
-if [[ "$(patrol --version)" != *"v2"* ]]; then
-    echo "Error: patrol_cli v2 is required" >&2
-    exit 1
-fi
-
 if [ -z "${BROWSERSTACK_CREDS:-}" ]; then
-    echo "Error: missing BROWSERSTACK_CREDS env var" >&2
+    echo "Error: BROWSERSTACK_CREDS not set" >&2
     exit 1
 fi
 
-printf "\n"
-./patrol build ios --release --no-label "${original_args[@]}"
+if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
+  echo "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
+else
+    patrol build ios --release "${original_args[@]}"
+fi
 
-printf "\nZipping test files...\n"
+printf "Will create zip archive of test files\n"
 
 cd build/ios_integ/Build/Products
 
 rm -rf Payload && mkdir -p Payload
-cp -r Release"${FLAVOR_SUFFIXED}"iphoneos/Runner.app Payload
+cp -r "Release${FLAVOR_SUFFIXED}iphoneos/Runner.app" Payload
 zip -r Runner.ipa Payload >/dev/null
 
 cd - >/dev/null
 
-cd build/ios_integ/Build/Products/Release"${FLAVOR_SUFFIXED}"iphoneos
+cd "build/ios_integ/Build/Products/Release${FLAVOR_SUFFIXED}iphoneos"
 rm -rf ios_tests.zip
 
 # BrowserStack fails if DiagnosticCollectionPolicy is present
@@ -133,11 +96,10 @@ test_url="$(
         jq --raw-output .test_suite_url
 )"
 
-echo "Uploaded test, url: $test_url"
-
-printf "\nScheduling test execution...\n"
+echo "Uploaded test instrumentation app, url: $test_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build
+printf "Will schedule test execution\n\n"
 curl -u "$BROWSERSTACK_CREDS" \
     -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
     -H "Content-Type: application/json" \
@@ -145,12 +107,12 @@ curl -u "$BROWSERSTACK_CREDS" \
 {
     "app": "$app_url",
     "testSuite": "$test_url",
-    "project": "$project_name",
-    "devices": $ios_devices,
+    "project": "$BROWSERSTACK_PROJECT",
+    "devices": $BROWSERSTACK_IOS_DEVICES,
     "deviceLogs": true,
     "enableResultBundle": true,
-    "idleTimeout": $timeout
+    "idleTimeout": $BROWSERSTACK_IDLE_TIMEOUT
 }
 EOF
 
-printf "\nScheduled test execution"
+printf "\n\nScheduled test execution"
