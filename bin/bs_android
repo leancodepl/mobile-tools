@@ -10,7 +10,8 @@ set -euo pipefail
 BROWSERSTACK_CREDS="${BROWSERSTACK_CREDS:-}"
 BROWSERSTACK_PROJECT="${BROWSERSTACK_PROJECT:-}"
 BROWSERSTACK_ANDROID_DEVICES="${BROWSERSTACK_ANDROID_DEVICES:-}"
-BROWSERSTACK_SKIP_BUILD="${BROWSERSTACK_SKIP_BUILD:-}"
+BROWSERSTACK_SKIP_BUILD="${BROWSERSTACK_SKIP_BUILD:-0}"
+BROWSERSTACK_IDLE_TIMEOUT="${BROWSERSTACK_IDLE_TIMEOUT:-900}"
 
 # Capture all arguments because they'll be consumed by getopt
 # shellcheck disable=SC2206
@@ -111,7 +112,8 @@ curl -u "$BROWSERSTACK_CREDS" \
     "useOrchestrator": "true",
     "clearPackageData": "true",
     "deviceLogs": "true",
-    "local": "false"
+    "local": "false",
+    "idleTimeout": $BROWSERSTACK_IDLE_TIMEOUT
 }
 EOF
 
