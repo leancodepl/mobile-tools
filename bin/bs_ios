@@ -20,12 +20,11 @@ BROWSERSTACK_SKIP_BUILD="${BROWSERSTACK_SKIP_BUILD:-0}"
 BROWSERSTACK_IDLE_TIMEOUT="${BROWSERSTACK_IDLE_TIMEOUT:-900}"
 
 if ! command -v jq >/dev/null 2>&1; then
-  1>&2 echo "Error: jq not found"
-  exit 1
+	echo 1>&2 "Error: jq not found"
+	exit 1
 fi
 
 # Capture all arguments because they'll be consumed by getopt
-# shellcheck disable=SC2206
 original_args=("$@")
 
 # Arg parsing start
@@ -47,36 +46,36 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -n "$FLAVOR" ]; then
-	1>&2 echo "Passed flavor: $FLAVOR"
+	echo 1>&2 "Passed flavor: $FLAVOR"
 	FLAVOR_SUFFIXED="-$FLAVOR-"
 	FLAVOR_PREFIXED="$FLAVOR"
 fi
 # Arg parsing end
 
 if [ -z "${BROWSERSTACK_CREDS:-}" ]; then
-	1>&2 echo "Error: BROWSERSTACK_CREDS not set"
+	echo 1>&2 "Error: BROWSERSTACK_CREDS not set"
 	exit 1
 fi
 
 if [ -z "$BROWSERSTACK_PROJECT" ]; then
 	default_project="Unnamed iOS project"
-	1>&2 echo "BROWSERSTACK_PROJECT not set, using default: $default_project"
+	echo 1>&2 "BROWSERSTACK_PROJECT not set, using default: $default_project"
 	BROWSERSTACK_PROJECT="$default_project"
 fi
 
 if [ -z "$BROWSERSTACK_IOS_DEVICES" ]; then
 	default_devices="[\"iPhone 14-16\"]"
-	1>&2 echo "BROWSERSTACK_IOS_DEVICES not set, using default: $default_devices"
+	echo 1>&2 "BROWSERSTACK_IOS_DEVICES not set, using default: $default_devices"
 	BROWSERSTACK_IOS_DEVICES="$default_devices"
 fi
 
 if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
-	1>&2 echo "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
+	echo 1>&2 "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
 else
 	patrol build ios --release "${original_args[@]}"
 fi
 
-1>&2 echo "Will create zip archive of test files"
+echo 1>&2 "Will create zip archive of test files"
 
 cd build/ios_integ/Build/Products || exit 1
 
@@ -96,52 +95,52 @@ cp ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun .
 zip -r ios_tests.zip "${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun RunnerUITests-Runner.app >/dev/null
 cd - >/dev/null || exit 1
 
-1>&2 echo "Created zip archive"
+echo 1>&2 "Created zip archive"
 
 app_path="$PWD/build/ios_integ/Build/Products/Runner.ipa"
 if [ ! -f "$app_path" ]; then
-	1>&2 echo "Error: app under test not found at $app_path"
+	echo 1>&2 "Error: app under test not found at $app_path"
 	exit 1
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/apps#upload-an-app
-1>&2 printf "Will upload app under test from %s\n\n" "$app_path"
+printf 1>&2 "Will upload app under test from %s\n\n" "$app_path"
 if ! app_upload_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
 		--form "file=@$app_path"
 )"; then
-	1>&2 echo "Error: failed to upload app under test"
-	1>&2 echo "$app_upload_response"
+	echo 1>&2 "Error: failed to upload app under test"
+	echo 1>&2 "$app_upload_response"
 	exit 1
 fi
 
 app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
-1>&2 printf "\nUploaded app under test, url: %s\n" "$app_url"
+printf 1>&2 "\nUploaded app under test, url: %s\n" "$app_url"
 
 test_path="$PWD/build/ios_integ/Build/Products/Release${FLAVOR_SUFFIXED}iphoneos/ios_tests.zip"
 if [ ! -f "$test_path" ]; then
-	1>&2 echo "Error: zip archive of test suite not found at $test_path"
+	echo 1>&2 "Error: zip archive of test suite not found at $test_path"
 	exit 1
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/tests#upload-a-test-suite
-1>&2 printf "Will upload zip archive of test suite from %s\n\n" "$test_path"
+printf 1>&2 "Will upload zip archive of test suite from %s\n\n" "$test_path"
 if ! test_upload_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
 		--form "file=@$test_path"
 )"; then
-	1>&2 echo "Error: failed to upload zip archive of test suite"
-	1>&2 echo "$test_upload_response"
+	echo 1>&2 "Error: failed to upload zip archive of test suite"
+	echo 1>&2 "$test_upload_response"
 	exit 1
 fi
 
 test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
-1>&2 printf "\nUploaded zip archive of test suite, url: %s\n" "$test_url"
+printf 1>&2 "\nUploaded zip archive of test suite, url: %s\n" "$test_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build
-1>&2 printf "Will schedule test execution\n\n"
+printf 1>&2 "Will schedule test execution\n\n"
 if ! run_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
@@ -158,12 +157,12 @@ if ! run_response="$(
 }
 EOF
 )"; then
-	1>&2 echo "Error: failed to schedule test execution"
-	1>&2 echo "$run_response"
+	echo 1>&2 "Error: failed to schedule test execution"
+	echo 1>&2 "$run_response"
 	exit 1
 fi
 
-1>&2 printf "\n\nScheduled test execution\n"
+printf 1>&2 "\n\nScheduled test execution\n"
 
 build_id="$(echo "$run_response" | jq --raw-output .build_id)"
 echo "$build_id"
