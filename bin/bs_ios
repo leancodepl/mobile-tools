@@ -99,9 +99,9 @@ fi
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/apps#upload-an-app
 printf "Will upload app under test from %s\n\n" "$app_path"
 app_upload_response="$(
-	curl -u "$BROWSERSTACK_CREDS" \
-		-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
-		-F "file=@$app_path"
+	curl --fail --user "$BROWSERSTACK_CREDS" \
+		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
+		--form "file=@$app_path"
 )"
 
 app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
@@ -116,9 +116,9 @@ fi
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/tests#upload-a-test-suite
 printf "Will upload zip archive of test suite from %s\n\n" "$test_path"
 test_upload_response="$(
-	curl -u "$BROWSERSTACK_CREDS" \
-		-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
-		-F "file=@$test_path"
+	curl --fail --user "$BROWSERSTACK_CREDS" \
+		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
+		--form "file=@$test_path"
 )"
 
 test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
@@ -126,9 +126,9 @@ printf "\nUploaded zip archive of test suite, url: %s\n" "$test_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build
 printf "Will schedule test execution\n\n"
-curl -u "$BROWSERSTACK_CREDS" \
-	-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
-	-H "Content-Type: application/json" \
+curl --fail --user "$BROWSERSTACK_CREDS" \
+	--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
+	--header "Content-Type: application/json" \
 	--data-binary @- <<EOF
 {
     "app": "$app_url",
