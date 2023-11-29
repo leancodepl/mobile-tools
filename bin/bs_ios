@@ -26,7 +26,7 @@ fi
 
 # Capture all arguments because they'll be consumed by getopt
 # shellcheck disable=SC2206
-original_args=($@)
+original_args=("$@")
 
 # Arg parsing start
 FLAVOR=""
@@ -78,15 +78,15 @@ fi
 
 1>&2 echo "Will create zip archive of test files"
 
-cd build/ios_integ/Build/Products
+cd build/ios_integ/Build/Products || exit 1
 
 rm -rf Payload && mkdir -p Payload
 cp -r "Release${FLAVOR_SUFFIXED}iphoneos/Runner.app" Payload
 zip -r Runner.ipa Payload >/dev/null
 
-cd - >/dev/null
+cd - >/dev/null || exit 1
 
-cd "build/ios_integ/Build/Products/Release${FLAVOR_SUFFIXED}iphoneos"
+cd "build/ios_integ/Build/Products/Release${FLAVOR_SUFFIXED}iphoneos" || exit 1
 rm -rf ios_tests.zip
 
 # BrowserStack fails if DiagnosticCollectionPolicy is present
@@ -94,7 +94,7 @@ plutil -remove 'TestConfigurations.TestTargets.DiagnosticCollectionPolicy' ../"$
 
 cp ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun .
 zip -r ios_tests.zip "${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun RunnerUITests-Runner.app >/dev/null
-cd - >/dev/null
+cd - >/dev/null || exit 1
 
 1>&2 echo "Created zip archive"
 
@@ -106,12 +106,11 @@ fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/apps#upload-an-app
 1>&2 printf "Will upload app under test from %s\n\n" "$app_path"
-app_upload_response="$(
+if ! app_upload_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
 		--form "file=@$app_path"
-)"
-if [ $? -ne 0 ]; then
+)"; then
 	1>&2 echo "Error: failed to upload app under test"
 	1>&2 echo "$app_upload_response"
 	exit 1
@@ -128,12 +127,11 @@ fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/tests#upload-a-test-suite
 1>&2 printf "Will upload zip archive of test suite from %s\n\n" "$test_path"
-test_upload_response="$(
+if ! test_upload_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
 		--form "file=@$test_path"
-)"
-if [ $? -ne 0 ]; then
+)"; then
 	1>&2 echo "Error: failed to upload zip archive of test suite"
 	1>&2 echo "$test_upload_response"
 	exit 1
@@ -144,7 +142,7 @@ test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build
 1>&2 printf "Will schedule test execution\n\n"
-run_response="$(
+if ! run_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
 		--header "Content-Type: application/json" \
@@ -159,9 +157,7 @@ run_response="$(
     "idleTimeout": $BROWSERSTACK_IDLE_TIMEOUT
 }
 EOF
-)"
-
-if [ $? -ne 0 ]; then
+)"; then
 	1>&2 echo "Error: failed to schedule test execution"
 	1>&2 echo "$run_response"
 	exit 1
