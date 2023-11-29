@@ -16,6 +16,11 @@ BROWSERSTACK_IOS_DEVICES="${BROWSERSTACK_IOS_DEVICES:-}"
 BROWSERSTACK_SKIP_BUILD="${BROWSERSTACK_SKIP_BUILD:-0}"
 BROWSERSTACK_IDLE_TIMEOUT="${BROWSERSTACK_IDLE_TIMEOUT:-900}"
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Error: jq not found"
+  exit 1
+fi
+
 # Capture all arguments because they'll be consumed by getopt
 # shellcheck disable=SC2206
 original_args=($@)
