@@ -73,39 +73,27 @@ else
 	patrol build ios --release "${original_args[@]}"
 fi
 
-echo "Will create zip archive Runner.ipa"
+echo "Will create zip archive of test files"
+
 cd build/ios_integ/Build/Products
+
 rm -rf Payload && mkdir -p Payload
 cp -r "Release${FLAVOR_SUFFIXED}iphoneos/Runner.app" Payload
 zip -r Runner.ipa Payload >/dev/null
+
 cd - >/dev/null
-echo "Created zip archive Runner.ipa"
 
-cd build/ios_integ/Build/Products
-rm -rf "Release${FLAVOR_SUFFIXED}iphoneos/ios_tests.zip"
+cd "build/ios_integ/Build/Products/Release${FLAVOR_SUFFIXED}iphoneos"
+rm -rf ios_tests.zip
 
-test_run_paths=("$PWD/${FLAVOR_PREFIXED}_TestPlan_iphoneos"*.xctestrun)
-test_run_path="${test_run_paths[0]}"
-test_run_name="$(basename "$test_run_path")"
-echo "Using xctestrun $test_run_name"
-if [ ! -f "$test_run_path" ]; then
-  echo "Error: xctestrun not found at $test_run_path"
-  exit 1
-fi
-
-echo "Will create ios_tests.zip (of RunnerUITests-Runner.app and xctestrun)"
 # BrowserStack fails if DiagnosticCollectionPolicy is present
-plutil -remove 'TestConfigurations.TestTargets.DiagnosticCollectionPolicy' "$test_run_path"
+plutil -remove 'TestConfigurations.TestTargets.DiagnosticCollectionPolicy' ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun
 
-# rm "$test_run_name"
-# cp "$test_run_path" .
-zip -r ios_tests.zip "$test_run_name" RunnerUITests-Runner.app >/dev/null
-pushd "Release${FLAVOR_SUFFIXED}iphoneos" >/dev/null
-zip -r ../ios_tests.zip RunnerUITests-Runner.app >/dev/null
-popd
+cp ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun .
+zip -r ios_tests.zip "${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun RunnerUITests-Runner.app >/dev/null
 cd - >/dev/null
 
-echo "Created ios_tests.zip"
+echo "Created zip archive"
 
 app_path="$PWD/build/ios_integ/Build/Products/Runner.ipa"
 if [ ! -f "$app_path" ]; then
@@ -124,13 +112,12 @@ app_upload_response="$(
 app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
 printf "\nUploaded app under test, url: %s\n" "$app_url"
 
-test_path="$PWD/build/ios_integ/Build/Products/ios_tests.zip"
+test_path="$PWD/build/ios_integ/Build/Products/Release${FLAVOR_SUFFIXED}iphoneos/ios_tests.zip"
 if [ ! -f "$test_path" ]; then
 	echo "Error: zip archive of test suite not found at $test_path"
 	exit 1
 fi
 
-set +e
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/tests#upload-a-test-suite
 printf "Will upload zip archive of test suite from %s\n\n" "$test_path"
 test_upload_response="$(
@@ -143,10 +130,8 @@ test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
 printf "\nUploaded zip archive of test suite, url: %s\n" "$test_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build
-
 printf "Will schedule test execution\n\n"
-run_response="$(
-  curl --user "$BROWSERSTACK_CREDS" \
+curl --fail --user "$BROWSERSTACK_CREDS" \
 	--request POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
 	--header "Content-Type: application/json" \
 	--data-binary @- <<EOF
@@ -160,10 +145,5 @@ run_response="$(
     "idleTimeout": $BROWSERSTACK_IDLE_TIMEOUT
 }
 EOF
-)"
-
-echo "here"
-
-echo "$run_response" | jq
 
 printf "\n\nScheduled test execution\n"
