@@ -29,40 +29,43 @@ TEMP=$(getopt -n "$0" -a -l "flavor:" -- -- "$@")
 eval set -- "$TEMP"
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--flavor) FLAVOR="$2"; shift;;
-	--) shift;;
+	--flavor)
+		FLAVOR="$2"
+		shift
+		;;
+	--) shift ;;
 	esac
 	shift
 done
 
 if [ -n "$FLAVOR" ]; then
-    echo "Passed flavor: $FLAVOR"
-    FLAVOR_SUFFIXED="-$FLAVOR-"
-    FLAVOR_PREFIXED="$FLAVOR"
+	echo "Passed flavor: $FLAVOR"
+	FLAVOR_SUFFIXED="-$FLAVOR-"
+	FLAVOR_PREFIXED="$FLAVOR"
 fi
 # Arg parsing end
 
 if [ -z "${BROWSERSTACK_CREDS:-}" ]; then
-    echo "Error: BROWSERSTACK_CREDS not set"
-    exit 1
+	echo "Error: BROWSERSTACK_CREDS not set"
+	exit 1
 fi
 
 if [ -z "$BROWSERSTACK_PROJECT" ]; then
-    default_project="Unnamed iOS project"
-    echo "BROWSERSTACK_PROJECT not set, using default: $default_project"
-    BROWSERSTACK_PROJECT="$default_project"
+	default_project="Unnamed iOS project"
+	echo "BROWSERSTACK_PROJECT not set, using default: $default_project"
+	BROWSERSTACK_PROJECT="$default_project"
 fi
 
 if [ -z "$BROWSERSTACK_IOS_DEVICES" ]; then
-    default_devices="[\"iPhone 14-16\"]"
-    echo "BROWSERSTACK_IOS_DEVICES not set, using default: $default_devices"
-    BROWSERSTACK_IOS_DEVICES="$default_devices"
+	default_devices="[\"iPhone 14-16\"]"
+	echo "BROWSERSTACK_IOS_DEVICES not set, using default: $default_devices"
+	BROWSERSTACK_IOS_DEVICES="$default_devices"
 fi
 
 if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
-  echo "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
+	echo "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
 else
-    patrol build ios --release "${original_args[@]}"
+	patrol build ios --release "${original_args[@]}"
 fi
 
 echo "Will create zip archive of test files"
@@ -89,16 +92,16 @@ echo "Created zip archive"
 
 app_path="$PWD/build/ios_integ/Build/Products/Runner.ipa"
 if [ ! -f "$app_path" ]; then
-  echo "Error: app under test not found at $app_path"
-  exit 1
+	echo "Error: app under test not found at $app_path"
+	exit 1
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/apps#upload-an-app
 printf "Will upload app under test from %s\n\n" "$app_path"
 app_upload_response="$(
-    curl -u "$BROWSERSTACK_CREDS" \
-        -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
-        -F "file=@$app_path"
+	curl -u "$BROWSERSTACK_CREDS" \
+		-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
+		-F "file=@$app_path"
 )"
 
 app_url="$(echo "$app_upload_response" | jq --raw-output .app_url)"
@@ -106,17 +109,16 @@ printf "\nUploaded app under test, url: %s\n" "$app_url"
 
 test_path="$PWD/build/ios_integ/Build/Products/Release${FLAVOR_SUFFIXED}iphoneos/ios_tests.zip"
 if [ ! -f "$test_path" ]; then
-  echo "Error: zip archive of test suite not found at $test_path"
-  exit 1
+	echo "Error: zip archive of test suite not found at $test_path"
+	exit 1
 fi
-
 
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/tests#upload-a-test-suite
 printf "Will upload zip archive of test suite from %s\n\n" "$test_path"
 test_upload_response="$(
-    curl -u "$BROWSERSTACK_CREDS" \
-        -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
-        -F "file=@$test_path"
+	curl -u "$BROWSERSTACK_CREDS" \
+		-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
+		-F "file=@$test_path"
 )"
 
 test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
@@ -125,9 +127,9 @@ printf "\nUploaded zip archive of test suite, url: %s\n" "$test_url"
 # https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build
 printf "Will schedule test execution\n\n"
 curl -u "$BROWSERSTACK_CREDS" \
-    -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
-    -H "Content-Type: application/json" \
-    --data-binary @- <<EOF
+	-X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/xctestrun-build" \
+	-H "Content-Type: application/json" \
+	--data-binary @- <<EOF
 {
     "app": "$app_url",
     "testSuite": "$test_url",
