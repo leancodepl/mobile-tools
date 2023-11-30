@@ -10,11 +10,11 @@ set -uo pipefail
 # --flavor, --exclude etc. just as you would pass them to "patrol_cli".
 #
 # It can also be configured with the following environment variables:
-BROWSERSTACK_CREDENTIALS="${BROWSERSTACK_CREDENTIALS:-}"
-BROWSERSTACK_PROJECT="${BROWSERSTACK_PROJECT:-}"
-BROWSERSTACK_ANDROID_DEVICES="${BROWSERSTACK_ANDROID_DEVICES:-}"
-BROWSERSTACK_SKIP_BUILD="${BROWSERSTACK_SKIP_BUILD:-0}"
-BROWSERSTACK_IDLE_TIMEOUT="${BROWSERSTACK_IDLE_TIMEOUT:-900}"
+BS_CREDENTIALS="${BS_CREDENTIALS:-}"
+BS_PROJECT="${BS_PROJECT:-}"
+BS_ANDROID_DEVICES="${BS_ANDROID_DEVICES:-}"
+BS_SKIP_BUILD="${BS_SKIP_BUILD:-0}"
+BS_IDLE_TIMEOUT="${BS_IDLE_TIMEOUT:-900}"
 
 # Capture all arguments because they'll be consumed by getopt
 original_args=("$@")
@@ -44,25 +44,25 @@ if [ -n "$FLAVOR" ]; then
 fi
 # Argument parsing end
 
-if [ -z "$BROWSERSTACK_CREDENTIALS" ]; then
-	echo 1>&2 "Error: BROWSERSTACK_CREDENTIALS not set"
+if [ -z "$BS_CREDENTIALS" ]; then
+	echo 1>&2 "Error: BS_CREDENTIALS not set"
 	exit 1
 fi
 
-if [ -z "$BROWSERSTACK_PROJECT" ]; then
+if [ -z "$BS_PROJECT" ]; then
 	default_project="Unnamed Android project"
-	echo 1>&2 "BROWSERSTACK_PROJECT not set, using default: $default_project"
-	BROWSERSTACK_PROJECT="$default_project"
+	echo 1>&2 "BS_PROJECT not set, using default: $default_project"
+	BS_PROJECT="$default_project"
 fi
 
-if [ -z "$BROWSERSTACK_ANDROID_DEVICES" ]; then
+if [ -z "$BS_ANDROID_DEVICES" ]; then
 	default_devices="[\"Google Pixel 4-10.0\"]"
-	echo 1>&2 "BROWSERSTACK_ANDROID_DEVICES not set, using default: $default_devices"
-	BROWSERSTACK_ANDROID_DEVICES="$default_devices"
+	echo 1>&2 "BS_ANDROID_DEVICES not set, using default: $default_devices"
+	BS_ANDROID_DEVICES="$default_devices"
 fi
 
-if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
-	echo 1>&2 "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
+if [ "$BS_SKIP_BUILD" = 1 ]; then
+	echo 1>&2 "BS_SKIP_BUILD set to 1, build was skipped"
 else
 	patrol 1>&2 build android "${original_args[@]}"
 fi
@@ -76,7 +76,7 @@ fi
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app
 printf 1>&2 "Will upload app under test from %s\n\n" "$app_path"
 if ! app_upload_response="$(
-	curl --fail-with-body --user "$BROWSERSTACK_CREDENTIALS" \
+	curl --fail-with-body --user "$BS_CREDENTIALS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/app" \
 		--form "file=@$app_path"
 )"; then
@@ -97,7 +97,7 @@ fi
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite
 printf 1>&2 "Will upload test instrumentation app from %s\n\n" "$test_path"
 if ! test_upload_response="$(
-	curl --fail-with-body --user "$BROWSERSTACK_CREDENTIALS" \
+	curl --fail-with-body --user "$BS_CREDENTIALS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite" \
 		--form "file=@$test_path"
 )"; then
@@ -112,21 +112,21 @@ echo 1>&2 "Uploaded test instrumentation app, url: $test_url"
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
 printf 1>&2 "Will schedule test execution\n\n"
 if ! run_response="$(
-	curl --fail-with-body --user "$BROWSERSTACK_CREDENTIALS" \
+	curl --fail-with-body --user "$BS_CREDENTIALS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
 		--header "Content-Type: application/json" \
 		--data-binary @- <<EOF
 {
     "app": "$app_url",
     "testSuite": "$test_url",
-    "project": "$BROWSERSTACK_PROJECT",
-    "devices": $BROWSERSTACK_ANDROID_DEVICES,
+    "project": "$BS_PROJECT",
+    "devices": $BS_ANDROID_DEVICES,
     "singleRunnerInvocation": "true",
     "useOrchestrator": "true",
     "clearPackageData": "true",
     "deviceLogs": "true",
     "local": "false",
-    "idleTimeout": $BROWSERSTACK_IDLE_TIMEOUT
+    "idleTimeout": $BS_IDLE_TIMEOUT
 }
 EOF
 )"; then
