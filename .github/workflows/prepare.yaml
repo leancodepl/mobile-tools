@@ -36,4 +36,6 @@ jobs:
         run: find ./bin -type f -print -exec shellcheck {} +
 
       - name: Run shfmt
-        run: shfmt -d .
+        run: |
+          shfmt -d ./bin
+          shfmt -d ./test/*.bats

@@ -20,35 +20,35 @@ set -euo pipefail
 # $ is_prerelease leancode_contracts 2.1.0 # the leading "v" can be ommitted
 
 if [ "$#" = 1 ]; then
-    tag="${1:-}"
+	tag="${1:-}"
 elif [ "$#" = 2 ]; then
-    package_name="${1:-}"
-    tag="${2:-}"
+	package_name="${1:-}"
+	tag="${2:-}"
 fi
 
 if [ -z "$tag" ]; then
-    echo "error: missing tag" 1>&2
-    exit 1
+	echo "error: missing tag" 1>&2
+	exit 1
 fi
 
 if [ -n "${package_name:-}" ]; then
-    # package name + git tag
-    version="${tag#"$package_name-v"}"
-    version="${version#v}"
+	# package name + git tag
+	version="${tag#"$package_name-v"}"
+	version="${version#v}"
 else
-    version="$(echo "$tag" | cut -d '-' -f 2-)"
-    version="${version#v}"
+	version="$(echo "$tag" | cut -d '-' -f 2-)"
+	version="${version#v}"
 fi
 
 suffix="$(echo "$version" | cut -d '-' -f 2-)"
 if [ "$suffix" = "$version" ]; then
-    suffix=""
+	suffix=""
 fi
 
 if [ -n "$suffix" ]; then
-    echo "true"
+	echo "true"
 elif [[ "$version" == 0* ]]; then
-    echo "true"
+	echo "true"
 else
-    echo "false"
+	echo "false"
 fi
