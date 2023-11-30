@@ -64,7 +64,7 @@ fi
 if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
 	echo 1>&2 "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
 else
-	1>&2 patrol build android "${original_args[@]}"
+	patrol 1>&2 build android "${original_args[@]}"
 fi
 
 app_path="$PWD/build/app/outputs/apk${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug.apk"
@@ -74,7 +74,7 @@ if [ ! -f "$app_path" ]; then
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app
-1>&2 printf "Will upload app under test from %s\n\n" "$app_path"
+printf 1>&2 "Will upload app under test from %s\n\n" "$app_path"
 if ! app_upload_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDENTIALS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/app" \
@@ -95,7 +95,7 @@ if [ ! -f "$test_path" ]; then
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite
-1>&2 printf "Will upload test instrumentation app from %s\n\n" "$test_path"
+printf 1>&2 "Will upload test instrumentation app from %s\n\n" "$test_path"
 if ! test_upload_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDENTIALS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite" \
@@ -110,12 +110,12 @@ test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
 echo 1>&2 "Uploaded test instrumentation app, url: $test_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
-1>&2 printf "Will schedule test execution\n\n"
+printf 1>&2 "Will schedule test execution\n\n"
 if ! run_response="$(
 	curl --fail-with-body --user "$BROWSERSTACK_CREDENTIALS" \
-	--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
-	--header "Content-Type: application/json" \
-	--data-binary @- <<EOF
+		--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
+		--header "Content-Type: application/json" \
+		--data-binary @- <<EOF
 {
     "app": "$app_url",
     "testSuite": "$test_url",

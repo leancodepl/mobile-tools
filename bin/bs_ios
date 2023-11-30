@@ -72,7 +72,7 @@ fi
 if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
 	echo 1>&2 "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
 else
-	1>&2 patrol build ios --release "${original_args[@]}"
+	patrol 1>&2 build ios --release "${original_args[@]}"
 fi
 
 echo 1>&2 "Will create zip archive of test files"
