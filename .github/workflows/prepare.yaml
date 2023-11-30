@@ -13,10 +13,18 @@ jobs:
 
     steps:
       - name: Clone repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          check-latest: true
+
+      - name: Install shfmt
+        run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
 
       - name: Install shellcheck
         run: sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y shellcheck
@@ -26,3 +34,8 @@ jobs:
 
       - name: Run shellcheck
         run: find ./bin -type f -print -exec shellcheck {} +
+
+      - name: Run shfmt
+        run: |
+          shfmt -d ./bin
+          shfmt -d ./test/*.bats

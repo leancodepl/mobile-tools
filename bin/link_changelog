@@ -14,7 +14,7 @@ set -euo pipefail
 # For example:
 #
 # $ link_changelog some_single_package v0.7.3
-# 
+#
 # $ link_changelog leancode_contracts v2.1.0
 #
 # $ link_changelog dispose_scope-v3.0.0-dev.1
@@ -22,36 +22,35 @@ set -euo pipefail
 # $ link_changelog dispose_scope 3.0.0-dev.1 # the leading "v" can be ommitted
 
 if [ "$#" = 1 ]; then
-    tag="${1:-}"
+	tag="${1:-}"
 elif [ "$#" = 2 ]; then
-    package_name="${1:-}"
-    tag="${2:-}"
+	package_name="${1:-}"
+	tag="${2:-}"
 fi
 
 if [ -z "$tag" ]; then
-    echo "error: missing tag" 1>&2
-    exit 1
+	echo "error: missing tag" 1>&2
+	exit 1
 fi
 
 if [ -n "${package_name:-}" ]; then
-    # package name + git tag
-    version="${tag#"$package_name"}"
-    version="${version#v}"
-    version=$(echo "$version" | tr -d '.+')
+	# package name + git tag
+	version="${tag#"$package_name"}"
+	version="${version#v}"
+	version=$(echo "$version" | tr -d '.+')
 else
-    # only git tag
-    package_name="$(echo "$tag" | cut -d '-' -f 1)"
-    version="$(echo "$tag" | cut -d '-' -f 2-)"
+	# only git tag
+	package_name="$(echo "$tag" | cut -d '-' -f 1)"
+	version="$(echo "$tag" | cut -d '-' -f 2-)"
 
-    if [ "$package_name" = "$version" ]; then
-        echo "error: invalid version" 1>&2
-        exit 1
-    fi
+	if [ "$package_name" = "$version" ]; then
+		echo "error: invalid version" 1>&2
+		exit 1
+	fi
 
-    version="${version#v}"
-    version=$(echo "$version" | tr -d '.+')
+	version="${version#v}"
+	version=$(echo "$version" | tr -d '.+')
 fi
 
 link="https://pub.dev/packages/$package_name/changelog#$version"
 echo "$link"
-

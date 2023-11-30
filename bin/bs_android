@@ -26,46 +26,49 @@ TEMP=$(getopt -n "$0" -a -l "flavor:" -- -- "$@")
 eval set -- "$TEMP"
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--flavor) FLAVOR="$2"; shift;;
-	--) shift;;
+	--flavor)
+		FLAVOR="$2"
+		shift
+		;;
+	--) shift ;;
 	esac
 	shift
 done
 
 if [ -n "$FLAVOR" ]; then
-  echo "Passed flavor: $FLAVOR"
-  FLAVOR_SUFFIXED="-$FLAVOR-"
-  FLAVOR_DIR="/$FLAVOR/"
+	echo "Passed flavor: $FLAVOR"
+	FLAVOR_SUFFIXED="-$FLAVOR-"
+	FLAVOR_DIR="/$FLAVOR/"
 fi
 # Argument parsing end
 
 if [ -z "$BROWSERSTACK_CREDS" ]; then
-    echo "Error: BROWSERSTACK_CREDS not set"
-    exit 1
+	echo "Error: BROWSERSTACK_CREDS not set"
+	exit 1
 fi
 
 if [ -z "$BROWSERSTACK_PROJECT" ]; then
-    default_project="Unnamed Android project"
-    echo "BROWSERSTACK_PROJECT not set, using default: $default_project"
-    BROWSERSTACK_PROJECT="$default_project"
+	default_project="Unnamed Android project"
+	echo "BROWSERSTACK_PROJECT not set, using default: $default_project"
+	BROWSERSTACK_PROJECT="$default_project"
 fi
 
 if [ -z "$BROWSERSTACK_ANDROID_DEVICES" ]; then
-    default_devices="[\"Google Pixel 4-10.0\"]"
-    echo "BROWSERSTACK_ANDROID_DEVICES not set, using default: $default_devices"
-    BROWSERSTACK_ANDROID_DEVICES="$default_devices"
+	default_devices="[\"Google Pixel 4-10.0\"]"
+	echo "BROWSERSTACK_ANDROID_DEVICES not set, using default: $default_devices"
+	BROWSERSTACK_ANDROID_DEVICES="$default_devices"
 fi
 
 if [ "$BROWSERSTACK_SKIP_BUILD" = 1 ]; then
-  echo "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
+	echo "BROWSERSTACK_SKIP_BUILD set to 1, build was skipped"
 else
-  patrol build android "${original_args[@]}"
+	patrol build android "${original_args[@]}"
 fi
 
 app_path="$PWD/build/app/outputs/apk${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug.apk"
 if [ ! -f "$app_path" ]; then
-  echo "Error: apk not found at $app_path"
-  exit 1
+	echo "Error: apk not found at $app_path"
+	exit 1
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app
@@ -81,8 +84,8 @@ echo "Uploaded app under test, url: $app_url"
 
 test_path="$PWD/build/app/outputs/apk/androidTest${FLAVOR_DIR}debug/app${FLAVOR_SUFFIXED}debug-androidTest.apk"
 if [ ! -f "$test_path" ]; then
-  echo "Error: test apk not found at $test_path"
-  exit 1
+	echo "Error: test apk not found at $test_path"
+	exit 1
 fi
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite
@@ -96,13 +99,12 @@ test_upload_response="$(
 test_url="$(echo "$test_upload_response" | jq --raw-output .test_suite_url)"
 echo "Uploaded test instrumentation app, url: $test_url"
 
-
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
 printf "Will schedule test execution\n\n"
 curl -u "$BROWSERSTACK_CREDS" \
-  -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
-  -H "Content-Type: application/json" \
-  --data-binary @- <<EOF
+	-X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
+	-H "Content-Type: application/json" \
+	--data-binary @- <<EOF
 {
     "app": "$app_url",
     "testSuite": "$test_url",

@@ -5,19 +5,19 @@ set -euo pipefail
 all_tags=$(git tag -l | wc -l)
 
 if [ "$all_tags" = 0 ]; then
-    echo "Repository contains no tags. Please make a tag first. Fetching last 5 commits"
+	echo "Repository contains no tags. Please make a tag first. Fetching last 5 commits"
 
-    changelog="$(git log -n 5 --pretty=format:" - %s [%an]")"
+	changelog="$(git log -n 5 --pretty=format:" - %s [%an]")"
 elif [ "$all_tags" = 1 ]; then
-    echo "Fetching last 5 commits."
+	echo "Fetching last 5 commits."
 
-    changelog="$(git log -n 5 --pretty=format:" - %s [%an]")"
-else 
-    echo "Fetching commits since last tag."
+	changelog="$(git log -n 5 --pretty=format:" - %s [%an]")"
+else
+	echo "Fetching commits since last tag."
 
-    latest_tag=$(git describe --tags --abbrev=0)
+	latest_tag=$(git describe --tags --abbrev=0)
 
-    changelog="$(git log --pretty=format:" - %s [%an]" "$latest_tag"..HEAD)"
+	changelog="$(git log --pretty=format:" - %s [%an]" "$latest_tag"..HEAD)"
 fi
 
 # Add branch info
@@ -25,16 +25,16 @@ branch="$(git branch --contains "${GIT_CLONE_COMMIT_HASH}")"
 branch=${branch:2}
 NEWLINE=$'\n'
 if [ -n "$branch" ]; then
-    if [[ "$branch" == *"feature"* ]]; then
-        branchinfo="*_WARNING_*: This is a _FEATURE_ build on *${branch}*${NEWLINE}${NEWLINE}" 
-        changelog=$branchinfo$changelog
-    elif [[ "$branch" == *"hotfix"* ]]; then
-        branchinfo="*_WARNING_*: This is a _HOTFIX_ build on *${branch}*${NEWLINE}${NEWLINE}"
-        changelog=$branchinfo$changelog
-    else
-        branchinfo="Built on *${branch}*${NEWLINE}${NEWLINE}"
-        changelog=$branchinfo$changelog
-    fi
+	if [[ "$branch" == *"feature"* ]]; then
+		branchinfo="*_WARNING_*: This is a _FEATURE_ build on *${branch}*${NEWLINE}${NEWLINE}"
+		changelog=$branchinfo$changelog
+	elif [[ "$branch" == *"hotfix"* ]]; then
+		branchinfo="*_WARNING_*: This is a _HOTFIX_ build on *${branch}*${NEWLINE}${NEWLINE}"
+		changelog=$branchinfo$changelog
+	else
+		branchinfo="Built on *${branch}*${NEWLINE}${NEWLINE}"
+		changelog=$branchinfo$changelog
+	fi
 fi
 
 # Output collected information
