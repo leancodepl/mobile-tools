@@ -16,7 +16,7 @@ extensive comment at the top of the file.
 ### generate_keystore
 
 Generates a single keystore (`.jks`) file for Android app signing.
-Usage: `$ generate_keystore <owner> <app_name> <environment>`
+Usage: `$ generate_keystore <owner> <app_name> <type>`
 
 **App signing by Google Play**
 
