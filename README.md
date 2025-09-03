@@ -13,9 +13,10 @@ All useful scripts gathered in one place.
 To learn more about programs, see their source code. They should have an
 extensive comment at the top of the file.
 
-### generate-keystore
+### generate_keystore
 
-Generates `tst`, `prod_upload`, and `prod` keystore (`.jks`) files.
+Generates a single keystore (`.jks`) file for Android app signing.
+Usage: `$ generate_keystore <owner> <app_name> <type>`
 
 **App signing by Google Play**
 
