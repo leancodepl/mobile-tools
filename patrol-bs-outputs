@@ -41,11 +41,11 @@ OUTPUT FILES:
 
 EXIT CODES:
     0   - Build passed
-    2   - Build error (infrastructure issue)
-    3   - Build timed out
-    4   - Build skipped
-    6   - Error downloading outputs
-    123 - Build failed (test failures)
+    1   - Build failed (test failures)
+    2   - Invalid arguments or usage error
+    3   - Build error (infrastructure issue)
+    4   - Build timed out
+    5   - Build skipped
 
 EXAMPLES:
     # Get all outputs
@@ -136,10 +136,12 @@ parse_outputs_args() {
     VERBOSE=false
     RETRY_LIMIT=5
     RETRY_DELAY=30
+    SHOW_HELP=false
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -h|--help)
+                SHOW_HELP=true
                 return 1
                 ;;
             --credentials)
@@ -196,7 +198,11 @@ cmd_outputs() {
     # Parse arguments
     if ! parse_outputs_args "$@"; then
         show_outputs_help
-        exit 0
+        if [[ "$SHOW_HELP" == true ]]; then
+            exit 0
+        else
+            exit 2
+        fi
     fi
     
     # Validate
@@ -285,20 +291,20 @@ cmd_outputs() {
                 exit 0
                 ;;
             failed)
-                log_error "Build failed"
-                exit 123
+                log_error "Build failed (test failures)"
+                exit 1
                 ;;
             error)
                 log_error "Build error (infrastructure issue)"
-                exit 2
+                exit 3
                 ;;
             timedout)
                 log_error "Build timed out"
-                exit 3
+                exit 4
                 ;;
             skipped)
                 log_warn "Build skipped"
-                exit 4
+                exit 5
                 ;;
             *)
                 log_warn "Unknown build status: $build_status"
