@@ -6,11 +6,17 @@
 #
 
 # =============================================================================
+# DEFAULTS
+# =============================================================================
+
+DEFAULT_ANDROID_DEVICES='["Google Pixel 8-14.0"]'
+
+# =============================================================================
 # HELP
 # =============================================================================
 
 show_android_help() {
-    cat <<'EOF'
+    cat <<EOF
 patrol-bs android - Build and upload Android APKs to BrowserStack
 
 USAGE:
@@ -32,7 +38,7 @@ ENVIRONMENT VARIABLES:
     PATROL_BS_ANDROID_DEVICES   Default devices JSON array
 
 DEFAULT DEVICES:
-    If not specified, uses: ["Google Pixel 8-14.0"]
+    If not specified, uses: $DEFAULT_ANDROID_DEVICES
 
 EXAMPLES:
     # Basic usage with target
@@ -58,7 +64,7 @@ EOF
 
 cmd_android() {
     # Set Android-specific defaults if not set by env
-    : "${ANDROID_DEVICES:='["Google Pixel 8-14.0"]'}"
+    : "${ANDROID_DEVICES:=$DEFAULT_ANDROID_DEVICES}"
     
     # Parse arguments
     if ! parse_build_args "android" "$@"; then

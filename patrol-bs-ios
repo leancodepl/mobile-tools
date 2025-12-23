@@ -6,11 +6,17 @@
 #
 
 # =============================================================================
+# DEFAULTS
+# =============================================================================
+
+DEFAULT_IOS_DEVICES='["iPhone 15 Pro-17"]'
+
+# =============================================================================
 # HELP
 # =============================================================================
 
 show_ios_help() {
-    cat <<'EOF'
+    cat <<EOF
 patrol-bs ios - Build and upload iOS apps to BrowserStack
 
 USAGE:
@@ -33,7 +39,7 @@ ENVIRONMENT VARIABLES:
     PATROL_BS_IOS_DEVICES       Default devices JSON array
 
 DEFAULT DEVICES:
-    If not specified, uses: ["iPhone 15 Pro-17"]
+    If not specified, uses: $DEFAULT_IOS_DEVICES
 
 EXAMPLES:
     # Basic usage with target
@@ -92,7 +98,7 @@ parse_ios_args() {
 
 cmd_ios() {
     # Set iOS-specific defaults if not set by env
-    : "${IOS_DEVICES:='["iPhone 15 Pro-17"]'}"
+    : "${IOS_DEVICES:=$DEFAULT_IOS_DEVICES}"
     
     # Parse arguments
     if ! parse_ios_args "$@"; then
