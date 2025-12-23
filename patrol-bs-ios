@@ -253,18 +253,23 @@ EOF
     local run_response
     if ! run_response=$(bs_api POST "/app-automate/xcuitest/v2/xctestrun-build" \
         -H "Content-Type: application/json" \
-        --data-raw "$payload"); then
+        --data-binary @- <<< "$payload"); then
         log_error "Failed to schedule test execution"
         echo "$run_response" >&2
         exit 1
     fi
     
-    log_success "Test execution scheduled"
-    echo "$run_response" >&2
-    
-    # Output build ID (stdout for scripting)
+    # Extract build ID
     local build_id
     build_id=$(echo "$run_response" | jq --raw-output .build_id)
+    
+    log_success "Test execution scheduled"
+    echo "" >&2
+    echo "  Build ID: $build_id" >&2
+    echo "  Dashboard: https://app-automate.browserstack.com/dashboard/v2/builds/$build_id" >&2
+    echo "" >&2
+    
+    # Output build ID to stdout for scripting
     echo "$build_id"
 }
 
