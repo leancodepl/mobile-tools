@@ -204,10 +204,8 @@ EOF
     
     log_success "Test execution scheduled"
     echo "" >&2
-    echo "  Build ID: $build_id" >&2
     echo "  Dashboard: https://app-automate.browserstack.com/dashboard/v2/builds/$build_id" >&2
-    echo "" >&2
-    
-    # Output build ID to stdout for scripting
+    echo "Build ID: $build_id" >&2
+    # Output build ID to stdout for scripting (must be last line)
     echo "$build_id"
 }
