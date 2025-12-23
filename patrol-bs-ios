@@ -106,7 +106,7 @@ cmd_ios() {
     require_project
     require_command "jq"
     require_command "curl"
-    require_command "plutil" "Available on macOS by default"
+    require_command "plutil"
     require_command "zip"
     
     # Build flavor-specific paths
