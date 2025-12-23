@@ -64,7 +64,7 @@ ENVIRONMENT VARIABLES:
 
 EXAMPLES:
     patrol-bs android --target integration_test/app_test.dart
-    patrol-bs ios --config prod --devices '["iPhone 15-17"]'
+    patrol-bs ios --devices '["iPhone 15-17"]'
     patrol-bs outputs abc123-build-id --verbose
 
 For command-specific help, run:

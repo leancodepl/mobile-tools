@@ -20,12 +20,9 @@ OPTIONS:
     --credentials <user:key>    BrowserStack credentials
     --project <name>            Project name on BrowserStack
     --devices <json>            JSON array of devices to test on
-    --tablets                   Use tablet devices instead of phones
-    --config <dev|prod>         Build configuration
-    --flavor <name>             Android build flavor
+    --flavor <name>             Build flavor
     --timeout <seconds>         Idle timeout (default: 240)
     --network-profile <name>    Network profile (default: reset)
-    --slow-internet             Use slow internet (2g-gprs-lossy)
     --skip-build                Skip building, only upload existing APKs
     --build-tag <tag>           Custom build tag for BrowserStack
     -h, --help                  Show this help message
@@ -36,7 +33,6 @@ ENVIRONMENT VARIABLES:
     PATROL_BS_CREDENTIALS       BrowserStack credentials
     PATROL_BS_PROJECT           Project name
     PATROL_BS_ANDROID_DEVICES   Default devices JSON array
-    PATROL_BS_ANDROID_TABLETS   Tablet devices JSON array
     PATROL_BS_TIMEOUT           Idle timeout
 
 DEFAULT DEVICES:
@@ -62,9 +58,8 @@ EOF
 # =============================================================================
 
 cmd_android() {
-    # Set Android-specific defaults if not set by config/env
+    # Set Android-specific defaults if not set by env
     : "${ANDROID_DEVICES:='["Google Pixel 8-14.0"]'}"
-    : "${ANDROID_TABLETS:='["Samsung Galaxy Tab S9-14.0"]'}"
     
     # Parse arguments
     if ! parse_build_args "android" "$@"; then
@@ -77,26 +72,6 @@ cmd_android() {
     require_project
     require_command "jq"
     require_command "curl"
-    
-    # Try to read config from pubspec if not set
-    if [[ -z "$CONFIG" ]]; then
-        CONFIG=$(read_config_from_pubspec "android") || true
-    fi
-    
-    # Use flavor from config if not explicitly set
-    if [[ -z "$FLAVOR" && -n "$CONFIG" ]]; then
-        FLAVOR="$CONFIG"
-    fi
-    
-    # Determine build type for tagging
-    determine_build_type "${PATROL_ARGS[@]:-}"
-    
-    local env
-    env=$(detect_environment)
-    
-    if [[ -z "$BUILD_TAG" ]]; then
-        BUILD_TAG="$env:$BUILD_TYPE"
-    fi
     
     # Build flavor-specific paths
     local flavor_separator="-"
@@ -111,18 +86,14 @@ cmd_android() {
     log_info "Devices: $ANDROID_DEVICES"
     log_info "Network profile: $NETWORK_PROFILE"
     log_info "Timeout: $TIMEOUT"
-    log_info "Build tag: $BUILD_TAG"
-    [[ -n "$CONFIG" ]] && log_info "Config: $CONFIG"
+    [[ -n "$BUILD_TAG" ]] && log_info "Build tag: $BUILD_TAG"
     [[ -n "$FLAVOR" ]] && log_info "Flavor: $FLAVOR"
     
     # Build the app
     if [[ "$SKIP_BUILD" != 1 ]]; then
         log_step "Building Android app..."
         
-        local build_args=()
-        [[ -n "$CONFIG" ]] && build_args+=("--config" "$CONFIG")
-        
-        if ! patrol build android "${build_args[@]}" "${PATROL_ARGS[@]:-}" >&2; then
+        if ! patrol build android "${PATROL_ARGS[@]:-}" >&2; then
             log_error "Build failed"
             exit 1
         fi
@@ -196,6 +167,13 @@ cmd_android() {
     # Schedule test execution
     log_step "Scheduling test execution..."
     
+    # Build optional fields
+    local optional_fields=""
+    if [[ -n "$BUILD_TAG" ]]; then
+        optional_fields+=",
+    \"buildTag\": \"$BUILD_TAG\""
+    fi
+    
     local run_response
     if ! run_response=$(bs_api POST "/app-automate/espresso/v2/build" \
         -H "Content-Type: application/json" \
@@ -213,8 +191,7 @@ cmd_android() {
     "networkLogs": false,
     "local": false,
     "networkProfile": "$NETWORK_PROFILE",
-    "idleTimeout": $TIMEOUT,
-    "buildTag": "$BUILD_TAG"
+    "idleTimeout": $TIMEOUT$optional_fields
 }
 EOF
     ); then

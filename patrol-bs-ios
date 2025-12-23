@@ -20,12 +20,9 @@ OPTIONS:
     --credentials <user:key>    BrowserStack credentials
     --project <name>            Project name on BrowserStack
     --devices <json>            JSON array of devices to test on
-    --tablets                   Use tablet devices instead of phones
-    --config <dev|prod>         Build configuration
-    --flavor <name>             iOS build flavor (scheme)
+    --flavor <name>             Build flavor
     --timeout <seconds>         Idle timeout (default: 240)
     --network-profile <name>    Network profile (default: reset)
-    --slow-internet             Use slow internet (2g-gprs-lossy)
     --skip-build                Skip building, only upload existing artifacts
     --build-tag <tag>           Custom build tag for BrowserStack
     --test-plan <name>          XCTest plan name (default: TestPlan)
@@ -37,7 +34,6 @@ ENVIRONMENT VARIABLES:
     PATROL_BS_CREDENTIALS       BrowserStack credentials
     PATROL_BS_PROJECT           Project name
     PATROL_BS_IOS_DEVICES       Default devices JSON array
-    PATROL_BS_IOS_TABLETS       Tablet devices JSON array
     PATROL_BS_TIMEOUT           Idle timeout
 
 DEFAULT DEVICES:
@@ -47,8 +43,8 @@ EXAMPLES:
     # Basic usage with target
     patrol-bs ios --target integration_test/app_test.dart
 
-    # With specific devices and config
-    patrol-bs ios --devices '["iPhone 16 Pro-18"]' --config prod
+    # With specific devices
+    patrol-bs ios --devices '["iPhone 16 Pro-18"]'
 
     # Skip build (use existing artifacts)
     patrol-bs ios --skip-build
@@ -96,9 +92,8 @@ parse_ios_args() {
 # =============================================================================
 
 cmd_ios() {
-    # Set iOS-specific defaults if not set by config/env
+    # Set iOS-specific defaults if not set by env
     : "${IOS_DEVICES:='["iPhone 15 Pro-17"]'}"
-    : "${IOS_TABLETS:='["iPad Pro 12.9 2022-16"]'}"
     
     # Parse arguments
     if ! parse_ios_args "$@"; then
@@ -114,26 +109,6 @@ cmd_ios() {
     require_command "plutil" "Available on macOS by default"
     require_command "zip"
     
-    # Try to read config from pubspec if not set
-    if [[ -z "$CONFIG" ]]; then
-        CONFIG=$(read_config_from_pubspec "ios") || true
-    fi
-    
-    # Use flavor from config if not explicitly set
-    if [[ -z "$FLAVOR" && -n "$CONFIG" ]]; then
-        FLAVOR="$CONFIG"
-    fi
-    
-    # Determine build type for tagging
-    determine_build_type "${PATROL_ARGS[@]:-}"
-    
-    local env
-    env=$(detect_environment)
-    
-    if [[ -z "$BUILD_TAG" ]]; then
-        BUILD_TAG="$env:$BUILD_TYPE"
-    fi
-    
     # Build flavor-specific paths
     local flavor_separator="-"
     local runner_prefix="Runner"
@@ -142,32 +117,20 @@ cmd_ios() {
         runner_prefix="$FLAVOR"
     fi
     
-    # Adjust test plan name based on config/flavor
-    if [[ "$CONFIG" == "prod" || "$FLAVOR" == "prod" ]]; then
-        # Check if a prod-specific test plan exists
-        if [[ "$TEST_PLAN" == "TestPlan" ]]; then
-            TEST_PLAN="TestPlanProd"
-        fi
-    fi
-    
     # Log configuration
     log_info "Project: $PROJECT"
     log_info "Devices: $IOS_DEVICES"
     log_info "Network profile: $NETWORK_PROFILE"
     log_info "Timeout: $TIMEOUT"
-    log_info "Build tag: $BUILD_TAG"
+    [[ -n "$BUILD_TAG" ]] && log_info "Build tag: $BUILD_TAG"
     log_info "Test plan: $TEST_PLAN"
-    [[ -n "$CONFIG" ]] && log_info "Config: $CONFIG"
     [[ -n "$FLAVOR" ]] && log_info "Flavor: $FLAVOR"
     
     # Build the app
     if [[ "$SKIP_BUILD" != 1 ]]; then
         log_step "Building iOS app..."
         
-        local build_args=("--release")
-        [[ -n "$CONFIG" ]] && build_args+=("--config" "$CONFIG")
-        
-        if ! patrol build ios "${build_args[@]}" "${PATROL_ARGS[@]:-}" >&2; then
+        if ! patrol build ios --release "${PATROL_ARGS[@]:-}" >&2; then
             log_error "Build failed"
             exit 1
         fi
@@ -266,6 +229,13 @@ cmd_ios() {
     # Schedule test execution
     log_step "Scheduling test execution..."
     
+    # Build optional fields
+    local optional_fields=""
+    if [[ -n "$BUILD_TAG" ]]; then
+        optional_fields+=",
+    \"buildTag\": \"$BUILD_TAG\""
+    fi
+    
     local run_response
     if ! run_response=$(bs_api POST "/app-automate/xcuitest/v2/xctestrun-build" \
         -H "Content-Type: application/json" \
@@ -280,8 +250,7 @@ cmd_ios() {
     "enableResultBundle": true,
     "networkLogs": false,
     "networkProfile": "$NETWORK_PROFILE",
-    "idleTimeout": $TIMEOUT,
-    "buildTag": "$BUILD_TAG"
+    "idleTimeout": $TIMEOUT$optional_fields
 }
 EOF
     ); then

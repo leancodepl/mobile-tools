@@ -20,15 +20,12 @@ NETWORK_PROFILE="${PATROL_BS_NETWORK_PROFILE:-reset}"
 # Platform-specific defaults
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts
 ANDROID_DEVICES="${PATROL_BS_ANDROID_DEVICES:-}"
-ANDROID_TABLETS="${PATROL_BS_ANDROID_TABLETS:-}"
 IOS_DEVICES="${PATROL_BS_IOS_DEVICES:-}"
-IOS_TABLETS="${PATROL_BS_IOS_TABLETS:-}"
 
 # Build settings
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts
 SKIP_BUILD="${PATROL_BS_SKIP_BUILD:-0}"
 BUILD_TAG=""
-CONFIG=""
 FLAVOR=""
 
 # =============================================================================
@@ -89,14 +86,6 @@ require_project() {
     fi
 }
 
-validate_config_value() {
-    local config="$1"
-    if [[ "$config" != "dev" && "$config" != "prod" ]]; then
-        log_error "--config must be either 'dev' or 'prod', got: $config"
-        exit 1
-    fi
-}
-
 validate_json_array() {
     local value="$1"
     local name="$2"
@@ -104,120 +93,6 @@ validate_json_array() {
     if ! echo "$value" | jq empty 2>/dev/null; then
         log_error "$name must be a valid JSON array"
         exit 1
-    fi
-}
-
-# =============================================================================
-# ENVIRONMENT DETECTION
-# =============================================================================
-
-detect_environment() {
-    if [[ -n "${CI:-}" || -n "${TF_BUILD:-}" || -n "${GITHUB_ACTIONS:-}" ]]; then
-        echo "ci"
-    else
-        echo "local"
-    fi
-}
-
-# =============================================================================
-# PUBSPEC PARSING
-# =============================================================================
-
-# Check if yq is available
-has_yq() {
-    command -v yq >/dev/null 2>&1
-}
-
-# Get value from pubspec.yaml
-get_pubspec_value() {
-    local yaml_path="$1"
-    local pubspec_path="${2:-pubspec.yaml}"
-    
-    # Try current directory first, then parent
-    if [[ ! -f "$pubspec_path" ]]; then
-        pubspec_path="../pubspec.yaml"
-    fi
-    
-    if [[ ! -f "$pubspec_path" ]]; then
-        return 1
-    fi
-    
-    if has_yq; then
-        yq "$yaml_path // \"\"" < "$pubspec_path" 2>/dev/null
-    else
-        return 1
-    fi
-}
-
-# Read config from pubspec.yaml with platform-specific fallback
-read_config_from_pubspec() {
-    local platform="$1"
-    local config=""
-    
-    if [[ "$platform" == "android" ]]; then
-        config=$(get_pubspec_value '.patrol.android.flavor' 2>/dev/null) || true
-    elif [[ "$platform" == "ios" ]]; then
-        config=$(get_pubspec_value '.patrol.ios.flavor' 2>/dev/null) || true
-    fi
-    
-    # Fall back to general patrol.flavor if platform-specific not found
-    if [[ -z "$config" ]]; then
-        config=$(get_pubspec_value '.patrol.flavor' 2>/dev/null) || true
-    fi
-    
-    echo "$config"
-}
-
-# =============================================================================
-# BUILD TYPE DETECTION
-# =============================================================================
-
-# Determine build type from patrol command arguments
-# Sets: BUILD_TYPE, TARGET_PASSED
-determine_build_type() {
-    local -a args=("$@")
-    local ask_for_build_type=false
-    # shellcheck disable=SC2034  # Variables are used by sourcing scripts
-    TARGET_PASSED=false
-    BUILD_TYPE=""
-    
-    local i=0
-    while [[ $i -lt ${#args[@]} ]]; do
-        case "${args[$i]}" in
-            -t|--target)
-                ((i++))
-                local target="${args[$i]:-}"
-                if [[ "$target" == *,* ]]; then
-                    ask_for_build_type=true
-                else
-                    local basename
-                    basename=$(basename "$target")
-                    if [[ "$basename" == *"."* ]]; then
-                        BUILD_TYPE="${basename%.*}"
-                    else
-                        BUILD_TYPE="feature:$basename"
-                    fi
-                fi
-                TARGET_PASSED=true
-                ;;
-            --exclude)
-                ask_for_build_type=true
-                ((i++))
-                ;;
-        esac
-        ((i++))
-    done
-    
-    if [[ "$TARGET_PASSED" != true ]]; then
-        BUILD_TYPE="all"
-    fi
-    
-    if $ask_for_build_type && [[ -t 0 ]]; then
-        printf "\nMultiple targets or exclude option passed.\nEnter build type: " >&2
-        read -r BUILD_TYPE
-        printf "\n" >&2
-    elif $ask_for_build_type; then
-        BUILD_TYPE="custom"
     fi
 }
 
@@ -259,38 +134,13 @@ parse_build_args() {
                     IOS_DEVICES="${1:-}"
                 fi
                 ;;
-            --tablets)
-                # Switch to tablet devices
-                if [[ "$platform" == "android" ]]; then
-                    if [[ -n "$ANDROID_TABLETS" ]]; then
-                        ANDROID_DEVICES="$ANDROID_TABLETS"
-                    else
-                        log_warn "No tablet devices configured for $platform"
-                    fi
-                else
-                    if [[ -n "$IOS_TABLETS" ]]; then
-                        IOS_DEVICES="$IOS_TABLETS"
-                    else
-                        log_warn "No tablet devices configured for $platform"
-                    fi
-                fi
-                ;;
             --timeout)
                 shift
                 TIMEOUT="${1:-}"
                 ;;
-            --config)
-                shift
-                CONFIG="${1:-}"
-                validate_config_value "$CONFIG"
-                ;;
             --flavor)
                 shift
                 FLAVOR="${1:-}"
-                ;;
-            --slow-internet)
-                NETWORK_PROFILE="2g-gprs-lossy"
-                PATROL_ARGS+=("--slow-internet")
                 ;;
             --skip-build)
                 SKIP_BUILD=1

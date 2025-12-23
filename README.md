@@ -26,7 +26,7 @@ A unified CLI for BrowserStack mobile app testing. Supports building and uploadi
 patrol-bs android --target integration_test/app_test.dart
 
 # Build and upload iOS app
-patrol-bs ios --config prod --devices '["iPhone 16 Pro-18"]'
+patrol-bs ios --devices '["iPhone 16 Pro-18"]'
 
 # Get outputs from a completed build
 patrol-bs outputs abc123-build-id --verbose
@@ -64,11 +64,9 @@ Configuration is loaded in order (later overrides earlier):
 | `--credentials <user:key>` | BrowserStack credentials |
 | `--project <name>` | Project name |
 | `--devices <json>` | Devices to test on (JSON array) |
-| `--tablets` | Use tablet devices instead of phones |
-| `--config <dev\|prod>` | Build configuration |
 | `--flavor <name>` | Build flavor |
 | `--timeout <seconds>` | Idle timeout |
-| `--slow-internet` | Use slow network profile |
+| `--network-profile <name>` | Network profile (e.g., `2g-gprs-lossy`) |
 | `--skip-build` | Skip building, only upload |
 | `--build-tag <tag>` | Custom build tag |
 
