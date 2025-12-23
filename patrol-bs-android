@@ -18,22 +18,18 @@ USAGE:
 
 OPTIONS:
     --credentials <user:key>    BrowserStack credentials
-    --project <name>            Project name on BrowserStack
     --devices <json>            JSON array of devices to test on
     --flavor <name>             Build flavor
-    --timeout <seconds>         Idle timeout (default: 240)
-    --network-profile <name>    Network profile (default: reset)
     --skip-build                Skip building, only upload existing APKs
-    --build-tag <tag>           Custom build tag for BrowserStack
+    --api-params <json>         Parameters for "Execute a build" API
+                                https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
     -h, --help                  Show this help message
 
     Any other arguments are passed through to 'patrol build android'.
 
 ENVIRONMENT VARIABLES:
     PATROL_BS_CREDENTIALS       BrowserStack credentials
-    PATROL_BS_PROJECT           Project name
     PATROL_BS_ANDROID_DEVICES   Default devices JSON array
-    PATROL_BS_TIMEOUT           Idle timeout
 
 DEFAULT DEVICES:
     If not specified, uses: ["Google Pixel 8-14.0"]
@@ -50,6 +46,9 @@ EXAMPLES:
 
     # Pass arguments to patrol
     patrol-bs android -- --exclude some_test.dart
+
+    # Use sharding with custom API params
+    patrol-bs android --api-params '{"shards": {"numberOfShards": 4}}'
 EOF
 }
 
@@ -69,7 +68,6 @@ cmd_android() {
     
     # Validate required settings
     require_credentials
-    require_project
     require_command "jq"
     require_command "curl"
     
@@ -82,12 +80,9 @@ cmd_android() {
     fi
     
     # Log configuration
-    log_info "Project: $PROJECT"
     log_info "Devices: $ANDROID_DEVICES"
-    log_info "Network profile: $NETWORK_PROFILE"
-    log_info "Timeout: $TIMEOUT"
-    [[ -n "$BUILD_TAG" ]] && log_info "Build tag: $BUILD_TAG"
     [[ -n "$FLAVOR" ]] && log_info "Flavor: $FLAVOR"
+    [[ -n "$API_PARAMS" ]] && log_info "API params: $API_PARAMS"
     
     # Build the app
     if [[ "$SKIP_BUILD" != 1 ]]; then
@@ -167,34 +162,18 @@ cmd_android() {
     # Schedule test execution
     log_step "Scheduling test execution..."
     
-    # Build optional fields
-    local optional_fields=""
-    if [[ -n "$BUILD_TAG" ]]; then
-        optional_fields+=",
-    \"buildTag\": \"$BUILD_TAG\""
+    # Build payload
+    local payload='{"app":"'"$app_url"'","testSuite":"'"$test_url"'","devices":'"$ANDROID_DEVICES"'}'
+    
+    # Merge with custom API params if provided
+    if [[ -n "$API_PARAMS" ]]; then
+        payload=$(echo "$payload" | jq --argjson extra "$API_PARAMS" '. * $extra')
     fi
     
     local run_response
     if ! run_response=$(bs_api POST "/app-automate/espresso/v2/build" \
         -H "Content-Type: application/json" \
-        --data-binary @- <<EOF
-{
-    "app": "$app_url",
-    "testSuite": "$test_url",
-    "project": "$PROJECT",
-    "devices": $ANDROID_DEVICES,
-    "singleRunnerInvocation": true,
-    "useOrchestrator": true,
-    "clearPackageData": true,
-    "deviceLogs": true,
-    "enableResultBundle": true,
-    "networkLogs": false,
-    "local": false,
-    "networkProfile": "$NETWORK_PROFILE",
-    "idleTimeout": $TIMEOUT$optional_fields
-}
-EOF
-    ); then
+        --data-raw "$payload"); then
         log_error "Failed to schedule test execution"
         echo "$run_response" >&2
         exit 1

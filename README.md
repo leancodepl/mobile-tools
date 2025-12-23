@@ -52,8 +52,6 @@ Configuration is loaded in order (later overrides earlier):
 | Variable | Description |
 |----------|-------------|
 | `PATROL_BS_CREDENTIALS` | BrowserStack credentials (`username:access_key`) |
-| `PATROL_BS_PROJECT` | Project name on BrowserStack |
-| `PATROL_BS_TIMEOUT` | Idle timeout in seconds (default: 240) |
 | `PATROL_BS_ANDROID_DEVICES` | Default Android devices (JSON array) |
 | `PATROL_BS_IOS_DEVICES` | Default iOS devices (JSON array) |
 
@@ -62,13 +60,10 @@ Configuration is loaded in order (later overrides earlier):
 | Option | Description |
 |--------|-------------|
 | `--credentials <user:key>` | BrowserStack credentials |
-| `--project <name>` | Project name |
 | `--devices <json>` | Devices to test on (JSON array) |
 | `--flavor <name>` | Build flavor |
-| `--timeout <seconds>` | Idle timeout |
-| `--network-profile <name>` | Network profile (e.g., `2g-gprs-lossy`) |
 | `--skip-build` | Skip building, only upload |
-| `--build-tag <tag>` | Custom build tag |
+| `--api-params <json>` | Parameters for Execute a build API ([Android](https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build) / [iOS](https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build)) |
 
 Run `patrol-bs <command> --help` for command-specific options.
 

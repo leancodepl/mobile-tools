@@ -13,9 +13,6 @@
 # These can be overridden by environment variables or CLI args
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts
 CREDENTIALS="${PATROL_BS_CREDENTIALS:-}"
-PROJECT="${PATROL_BS_PROJECT:-}"
-TIMEOUT="${PATROL_BS_TIMEOUT:-240}"
-NETWORK_PROFILE="${PATROL_BS_NETWORK_PROFILE:-reset}"
 
 # Platform-specific defaults
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts
@@ -25,8 +22,8 @@ IOS_DEVICES="${PATROL_BS_IOS_DEVICES:-}"
 # Build settings
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts
 SKIP_BUILD="${PATROL_BS_SKIP_BUILD:-0}"
-BUILD_TAG=""
 FLAVOR=""
+API_PARAMS=""
 
 # =============================================================================
 # LOGGING
@@ -79,13 +76,6 @@ require_credentials() {
     fi
 }
 
-require_project() {
-    if [[ -z "$PROJECT" ]]; then
-        log_warn "Project name not set, using 'Unnamed Project'"
-        PROJECT="Unnamed Project"
-    fi
-}
-
 validate_json_array() {
     local value="$1"
     local name="$2"
@@ -121,10 +111,6 @@ parse_build_args() {
                 shift
                 CREDENTIALS="${1:-}"
                 ;;
-            --project)
-                shift
-                PROJECT="${1:-}"
-                ;;
             --devices)
                 shift
                 # Set platform-specific devices variable
@@ -134,10 +120,6 @@ parse_build_args() {
                     IOS_DEVICES="${1:-}"
                 fi
                 ;;
-            --timeout)
-                shift
-                TIMEOUT="${1:-}"
-                ;;
             --flavor)
                 shift
                 FLAVOR="${1:-}"
@@ -145,13 +127,9 @@ parse_build_args() {
             --skip-build)
                 SKIP_BUILD=1
                 ;;
-            --build-tag)
+            --api-params)
                 shift
-                BUILD_TAG="${1:-}"
-                ;;
-            --network-profile)
-                shift
-                NETWORK_PROFILE="${1:-}"
+                API_PARAMS="${1:-}"
                 ;;
             *)
                 # Pass through to patrol command
