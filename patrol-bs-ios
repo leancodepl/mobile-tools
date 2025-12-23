@@ -225,7 +225,19 @@ cmd_ios() {
     log_step "Scheduling test execution..."
     
     # Build payload
-    local payload='{"app":"'"$app_url"'","testSuite":"'"$test_url"'","devices":'"$IOS_DEVICES"'}'
+    local payload
+    payload=$(cat <<EOF
+{
+    "app": "$app_url",
+    "testSuite": "$test_url",
+    "devices": $IOS_DEVICES,
+    "singleRunnerInvocation": true,
+    "deviceLogs": true,
+    "enableResultBundle": true,
+    "networkLogs": false
+}
+EOF
+    )
     
     # Merge with custom API params if provided
     if [[ -n "$API_PARAMS" ]]; then

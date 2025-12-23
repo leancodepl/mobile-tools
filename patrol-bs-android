@@ -163,7 +163,20 @@ cmd_android() {
     log_step "Scheduling test execution..."
     
     # Build payload
-    local payload='{"app":"'"$app_url"'","testSuite":"'"$test_url"'","devices":'"$ANDROID_DEVICES"'}'
+    local payload
+    payload=$(cat <<EOF
+{
+    "app": "$app_url",
+    "testSuite": "$test_url",
+    "devices": $ANDROID_DEVICES,
+    "singleRunnerInvocation": true,
+    "useOrchestrator": true,
+    "clearPackageData": true,
+    "deviceLogs": true,
+    "enableResultBundle": true
+}
+EOF
+    )
     
     # Merge with custom API params if provided
     if [[ -n "$API_PARAMS" ]]; then
