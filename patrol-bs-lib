@@ -113,53 +113,15 @@ load_config_file() {
     done < "$config_file"
 }
 
-# Get the XDG config directory
-get_config_dir() {
-    echo "${XDG_CONFIG_HOME:-$HOME/.config}/patrol-bs"
-}
-
-# Get the active profile name
-get_active_profile() {
-    local config_dir
-    config_dir=$(get_config_dir)
-    local profile_file="$config_dir/.active_profile"
-    
-    if [[ -f "$profile_file" ]]; then
-        cat "$profile_file"
-    else
-        echo "default"
-    fi
-}
-
-# Get the config file path for the active profile
-get_profile_config_file() {
-    local config_dir
-    config_dir=$(get_config_dir)
-    local profile
-    profile=$(get_active_profile)
-    
-    if [[ "$profile" == "default" ]]; then
-        echo "$config_dir/config"
-    else
-        echo "$config_dir/config_$profile"
-    fi
-}
-
 # Load configuration from all sources in order
-# Priority: XDG profile config < ~/.patrol-bs.conf < ./.patrol-bs.conf
 load_config() {
-    # 1. Load from XDG config directory (profile-based)
-    local profile_config
-    profile_config=$(get_profile_config_file)
-    load_config_file "$profile_config"
-    
-    # 2. Load from home directory config (legacy location, overrides XDG)
+    # Load from home directory config
     load_config_file "$HOME/.patrol-bs.conf"
     
-    # 3. Load from current directory config (project-specific, highest priority)
+    # Load from current directory config (overrides home)
     load_config_file ".patrol-bs.conf"
     
-    # 4. Load from patrol-bs install directory if different
+    # Load from project directory if different
     if [[ -n "${PATROL_BS_DIR:-}" && "$PATROL_BS_DIR" != "$PWD" ]]; then
         load_config_file "$PATROL_BS_DIR/.patrol-bs.conf"
     fi

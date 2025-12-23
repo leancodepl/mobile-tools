@@ -42,7 +42,6 @@ COMMANDS:
     android     Build and upload Android APKs to BrowserStack
     ios         Build and upload iOS apps to BrowserStack
     outputs     Get outputs/artifacts from a BrowserStack build
-    config      Manage configuration (credentials, project, devices)
 
 GLOBAL OPTIONS:
     -h, --help      Show this help message
@@ -104,10 +103,6 @@ main() {
         outputs)
             source "$PATROL_BS_DIR/patrol-bs-outputs"
             cmd_outputs "$@"
-            ;;
-        config)
-            source "$PATROL_BS_DIR/patrol-bs-config"
-            cmd_config "$@"
             ;;
         -h|--help)
             show_main_help

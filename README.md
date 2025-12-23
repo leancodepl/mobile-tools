@@ -39,61 +39,14 @@ patrol-bs outputs abc123-build-id --verbose
 | `android` | Build and upload Android APKs to BrowserStack |
 | `ios` | Build and upload iOS apps to BrowserStack |
 | `outputs` | Get outputs/artifacts from a BrowserStack build |
-| `config` | Manage configuration (credentials, project, devices) |
 
 #### Configuration
 
-**Interactive Setup (Recommended)**
-
-```bash
-# Run interactive setup wizard
-patrol-bs config init
-```
-
-**Setting Values via CLI**
-
-```bash
-# Set credentials
-patrol-bs config set credentials "username:access_key"
-
-# Set project name
-patrol-bs config set project "MyApp"
-
-# Set devices
-patrol-bs config set android.devices '["Samsung Galaxy S24-14.0"]'
-patrol-bs config set ios.devices '["iPhone 15 Pro-17"]'
-
-# View current configuration
-patrol-bs config list
-```
-
-**Named Profiles**
-
-Create different profiles for different projects or environments:
-
-```bash
-# Create a profile for production
-patrol-bs config create production
-patrol-bs config use production
-patrol-bs config set project "MyApp-Prod"
-patrol-bs config set android.devices '["Samsung Galaxy S24-14.0"]'
-
-# Switch back to default
-patrol-bs config use default
-
-# List all profiles
-patrol-bs config profiles
-```
-
-**Configuration Priority**
-
 Configuration is loaded in order (later overrides earlier):
 1. Built-in defaults
-2. Profile config (`~/.config/patrol-bs/config`)
-3. Legacy config (`~/.patrol-bs.conf`)
-4. Project config (`.patrol-bs.conf` in current dir)
-5. Environment variables (`PATROL_BS_*`)
-6. Command-line arguments
+2. Environment variables (`PATROL_BS_*`)
+3. Config file (`~/.patrol-bs.conf` or `.patrol-bs.conf` in current dir)
+4. Command-line arguments
 
 **Environment Variables:**
 
@@ -104,6 +57,16 @@ Configuration is loaded in order (later overrides earlier):
 | `PATROL_BS_TIMEOUT` | Idle timeout in seconds (default: 240) |
 | `PATROL_BS_ANDROID_DEVICES` | Default Android devices (JSON array) |
 | `PATROL_BS_IOS_DEVICES` | Default iOS devices (JSON array) |
+
+**Config File Example (`~/.patrol-bs.conf`):**
+
+```ini
+credentials=username:access_key
+project=MyProject
+timeout=300
+android_devices=["Samsung Galaxy S24-14.0"]
+ios_devices=["iPhone 15 Pro-17"]
+```
 
 #### Common Options
 
