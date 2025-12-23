@@ -96,9 +96,6 @@ parse_ios_args() {
 # =============================================================================
 
 cmd_ios() {
-    # Load configuration
-    load_config
-    
     # Set iOS-specific defaults if not set by config/env
     : "${IOS_DEVICES:='["iPhone 15 Pro-17"]'}"
     : "${IOS_TABLETS:='["iPad Pro 12.9 2022-16"]'}"

@@ -51,8 +51,7 @@ CONFIGURATION:
     Configuration is loaded in order (later overrides earlier):
     1. Built-in defaults
     2. Environment variables (PATROL_BS_*)
-    3. Config file (~/.patrol-bs.conf or .patrol-bs.conf in current dir)
-    4. Command-line arguments
+    3. Command-line arguments
 
 ENVIRONMENT VARIABLES:
     PATROL_BS_CREDENTIALS    BrowserStack credentials (username:access_key)

@@ -10,7 +10,7 @@
 # CONFIGURATION DEFAULTS
 # =============================================================================
 
-# These can be overridden by environment variables, config file, or CLI args
+# These can be overridden by environment variables or CLI args
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts
 CREDENTIALS="${PATROL_BS_CREDENTIALS:-}"
 PROJECT="${PATROL_BS_PROJECT:-}"
@@ -71,70 +71,13 @@ log_step() {
 }
 
 # =============================================================================
-# CONFIGURATION LOADING
-# =============================================================================
-
-# Load configuration from file
-# Config file format: KEY=VALUE (one per line, # for comments)
-load_config_file() {
-    local config_file="$1"
-    
-    if [[ ! -f "$config_file" ]]; then
-        return 0
-    fi
-    
-    log_info "Loading config from $config_file"
-    
-    while IFS='=' read -r key value; do
-        # Skip empty lines and comments
-        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
-        
-        # Trim whitespace
-        key=$(echo "$key" | xargs)
-        value=$(echo "$value" | xargs)
-        
-        # Remove quotes from value if present
-        value="${value#\"}"
-        value="${value%\"}"
-        value="${value#\'}"
-        value="${value%\'}"
-        
-        # shellcheck disable=SC2034  # Variables are used by sourcing scripts
-        case "$key" in
-            credentials)      CREDENTIALS="$value" ;;
-            project)          PROJECT="$value" ;;
-            timeout)          TIMEOUT="$value" ;;
-            network_profile)  NETWORK_PROFILE="$value" ;;
-            android_devices)  ANDROID_DEVICES="$value" ;;
-            android_tablets)  ANDROID_TABLETS="$value" ;;
-            ios_devices)      IOS_DEVICES="$value" ;;
-            ios_tablets)      IOS_TABLETS="$value" ;;
-        esac
-    done < "$config_file"
-}
-
-# Load configuration from all sources in order
-load_config() {
-    # Load from home directory config
-    load_config_file "$HOME/.patrol-bs.conf"
-    
-    # Load from current directory config (overrides home)
-    load_config_file ".patrol-bs.conf"
-    
-    # Load from project directory if different
-    if [[ -n "${PATROL_BS_DIR:-}" && "$PATROL_BS_DIR" != "$PWD" ]]; then
-        load_config_file "$PATROL_BS_DIR/.patrol-bs.conf"
-    fi
-}
-
-# =============================================================================
 # VALIDATION
 # =============================================================================
 
 require_credentials() {
     if [[ -z "$CREDENTIALS" ]]; then
         log_error "BrowserStack credentials not set"
-        echo "Set via: --credentials, PATROL_BS_CREDENTIALS env var, or config file" >&2
+        echo "Set via: --credentials or PATROL_BS_CREDENTIALS env var" >&2
         exit 1
     fi
 }

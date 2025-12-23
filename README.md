@@ -45,8 +45,7 @@ patrol-bs outputs abc123-build-id --verbose
 Configuration is loaded in order (later overrides earlier):
 1. Built-in defaults
 2. Environment variables (`PATROL_BS_*`)
-3. Config file (`~/.patrol-bs.conf` or `.patrol-bs.conf` in current dir)
-4. Command-line arguments
+3. Command-line arguments
 
 **Environment Variables:**
 
@@ -57,16 +56,6 @@ Configuration is loaded in order (later overrides earlier):
 | `PATROL_BS_TIMEOUT` | Idle timeout in seconds (default: 240) |
 | `PATROL_BS_ANDROID_DEVICES` | Default Android devices (JSON array) |
 | `PATROL_BS_IOS_DEVICES` | Default iOS devices (JSON array) |
-
-**Config File Example (`~/.patrol-bs.conf`):**
-
-```ini
-credentials=username:access_key
-project=MyProject
-timeout=300
-android_devices=["Samsung Galaxy S24-14.0"]
-ios_devices=["iPhone 15 Pro-17"]
-```
 
 #### Common Options
 

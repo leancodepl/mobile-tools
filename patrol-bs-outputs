@@ -193,9 +193,6 @@ parse_outputs_args() {
 # =============================================================================
 
 cmd_outputs() {
-    # Load configuration
-    load_config
-    
     # Parse arguments
     if ! parse_outputs_args "$@"; then
         show_outputs_help

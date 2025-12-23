@@ -62,9 +62,6 @@ EOF
 # =============================================================================
 
 cmd_android() {
-    # Load configuration
-    load_config
-    
     # Set Android-specific defaults if not set by config/env
     : "${ANDROID_DEVICES:='["Google Pixel 8-14.0"]'}"
     : "${ANDROID_TABLETS:='["Samsung Galaxy Tab S9-14.0"]'}"
