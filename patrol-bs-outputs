@@ -251,8 +251,6 @@ cmd_outputs() {
     log_info "Platform: $platform ($framework)"
     
     # Wait for build to complete
-    log_step "Checking build status..."
-    
     local build_status
     build_status=$(echo "$build_data_response" | jq --raw-output .status)
     
@@ -263,8 +261,6 @@ cmd_outputs() {
         build_data_response=$(bs_api GET "/app-automate/$framework/v2/builds/$BUILD_ID")
         build_status=$(echo "$build_data_response" | jq --raw-output .status)
     done
-    
-    log_info "Build status: $build_status"
     
     if [[ "$VERBOSE" == true ]]; then
         echo "Build details:" >&2
@@ -280,34 +276,32 @@ cmd_outputs() {
         exit 1
     fi
     
-    log_info "Session ID: $session_id"
-    
     # Helper function to exit with appropriate code
     exit_with_status() {
         echo "" >&2
         case "$build_status" in
             passed)
-                log_success "Build passed"
+                echo -e "${GREEN}[OK] Build PASSED${NC}" >&2
                 exit 0
                 ;;
             failed)
-                log_error "Build failed (test failures)"
+                echo -e "${RED}[ERROR] Build FAILED${NC} (test failures)" >&2
                 exit 1
                 ;;
             error)
-                log_error "Build error (infrastructure issue)"
+                echo -e "${RED}[ERROR] Build ERROR${NC} (infrastructure issue)" >&2
                 exit 3
                 ;;
             timedout)
-                log_error "Build timed out"
+                echo -e "${YELLOW}[WARN] Build TIMEOUT${NC}" >&2
                 exit 4
                 ;;
             skipped)
-                log_warn "Build skipped"
+                echo -e "${YELLOW}[WARN] Build SKIPPED${NC}" >&2
                 exit 5
                 ;;
             *)
-                log_warn "Unknown build status: $build_status"
+                echo -e "${YELLOW}[WARN] Build status: $build_status${NC}" >&2
                 exit 1
                 ;;
         esac
@@ -408,7 +402,11 @@ cmd_outputs() {
         log_warn "$download_errors download(s) failed"
     fi
     
-    log_success "Outputs saved to: $OUTPUT_DIR"
+    if [[ "$OUTPUT_DIR" == "." ]]; then
+        log_success "Outputs saved to current directory"
+    else
+        log_success "Outputs saved to: $OUTPUT_DIR"
+    fi
     
     exit_with_status
 }
