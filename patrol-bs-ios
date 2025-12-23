@@ -37,7 +37,7 @@ DEFAULT DEVICES:
 
 EXAMPLES:
     # Basic usage with target
-    patrol-bs ios --target integration_test/app_test.dart
+    patrol-bs ios --target patrol_test/app_test.dart
 
     # With specific devices
     patrol-bs ios --devices '["iPhone 16 Pro-18"]'

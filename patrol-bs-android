@@ -36,7 +36,7 @@ DEFAULT DEVICES:
 
 EXAMPLES:
     # Basic usage with target
-    patrol-bs android --target integration_test/app_test.dart
+    patrol-bs android --target patrol_test/app_test.dart
 
     # With specific devices and flavor
     patrol-bs android --devices '["Samsung Galaxy S24-14.0"]' --flavor dev

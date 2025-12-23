@@ -23,7 +23,7 @@ A unified CLI for BrowserStack mobile app testing. Supports building and uploadi
 
 ```bash
 # Build and upload Android app
-patrol-bs android --target integration_test/app_test.dart
+patrol-bs android --target patrol_test/app_test.dart
 
 # Build and upload iOS app
 patrol-bs ios --devices '["iPhone 16 Pro-18"]'

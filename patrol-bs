@@ -59,7 +59,7 @@ ENVIRONMENT VARIABLES:
     PATROL_BS_IOS_DEVICES        JSON array of iOS devices
 
 EXAMPLES:
-    patrol-bs android --target integration_test/app_test.dart
+    patrol-bs android --target patrol_test/app_test.dart
     patrol-bs ios --devices '["iPhone 15-17"]'
     patrol-bs outputs abc123-build-id --verbose
 
