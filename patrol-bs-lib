@@ -1,0 +1,493 @@
+#!/usr/bin/env bash
+#
+# patrol-bs-lib - Shared library for patrol-bs CLI
+#
+# This file is sourced by patrol-bs and its subcommands.
+# It provides common functions for configuration, logging, and API interactions.
+#
+
+# =============================================================================
+# CONFIGURATION DEFAULTS
+# =============================================================================
+
+# These can be overridden by environment variables, config file, or CLI args
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+CREDENTIALS="${PATROL_BS_CREDENTIALS:-}"
+PROJECT="${PATROL_BS_PROJECT:-}"
+TIMEOUT="${PATROL_BS_TIMEOUT:-240}"
+NETWORK_PROFILE="${PATROL_BS_NETWORK_PROFILE:-reset}"
+
+# Platform-specific defaults
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+ANDROID_DEVICES="${PATROL_BS_ANDROID_DEVICES:-}"
+ANDROID_TABLETS="${PATROL_BS_ANDROID_TABLETS:-}"
+IOS_DEVICES="${PATROL_BS_IOS_DEVICES:-}"
+IOS_TABLETS="${PATROL_BS_IOS_TABLETS:-}"
+
+# Build settings
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+SKIP_BUILD="${PATROL_BS_SKIP_BUILD:-0}"
+BUILD_TAG=""
+CONFIG=""
+FLAVOR=""
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+
+# ANSI color codes (disabled if not a terminal)
+if [[ -t 2 ]]; then
+    readonly RED='\033[0;31m'
+    readonly GREEN='\033[0;32m'
+    readonly YELLOW='\033[0;33m'
+    readonly BLUE='\033[0;34m'
+    readonly NC='\033[0m' # No Color
+else
+    readonly RED=''
+    readonly GREEN=''
+    readonly YELLOW=''
+    readonly BLUE=''
+    readonly NC=''
+fi
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $*" >&2
+}
+
+log_success() {
+    echo -e "${GREEN}[OK]${NC} $*" >&2
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $*" >&2
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $*" >&2
+}
+
+log_step() {
+    echo -e "\n${BLUE}==>${NC} $*" >&2
+}
+
+# =============================================================================
+# CONFIGURATION LOADING
+# =============================================================================
+
+# Load configuration from file
+# Config file format: KEY=VALUE (one per line, # for comments)
+load_config_file() {
+    local config_file="$1"
+    
+    if [[ ! -f "$config_file" ]]; then
+        return 0
+    fi
+    
+    log_info "Loading config from $config_file"
+    
+    while IFS='=' read -r key value; do
+        # Skip empty lines and comments
+        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+        
+        # Trim whitespace
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
+        
+        # Remove quotes from value if present
+        value="${value#\"}"
+        value="${value%\"}"
+        value="${value#\'}"
+        value="${value%\'}"
+        
+        # shellcheck disable=SC2034  # Variables are used by sourcing scripts
+        case "$key" in
+            credentials)      CREDENTIALS="$value" ;;
+            project)          PROJECT="$value" ;;
+            timeout)          TIMEOUT="$value" ;;
+            network_profile)  NETWORK_PROFILE="$value" ;;
+            android_devices)  ANDROID_DEVICES="$value" ;;
+            android_tablets)  ANDROID_TABLETS="$value" ;;
+            ios_devices)      IOS_DEVICES="$value" ;;
+            ios_tablets)      IOS_TABLETS="$value" ;;
+        esac
+    done < "$config_file"
+}
+
+# Get the XDG config directory
+get_config_dir() {
+    echo "${XDG_CONFIG_HOME:-$HOME/.config}/patrol-bs"
+}
+
+# Get the active profile name
+get_active_profile() {
+    local config_dir
+    config_dir=$(get_config_dir)
+    local profile_file="$config_dir/.active_profile"
+    
+    if [[ -f "$profile_file" ]]; then
+        cat "$profile_file"
+    else
+        echo "default"
+    fi
+}
+
+# Get the config file path for the active profile
+get_profile_config_file() {
+    local config_dir
+    config_dir=$(get_config_dir)
+    local profile
+    profile=$(get_active_profile)
+    
+    if [[ "$profile" == "default" ]]; then
+        echo "$config_dir/config"
+    else
+        echo "$config_dir/config_$profile"
+    fi
+}
+
+# Load configuration from all sources in order
+# Priority: XDG profile config < ~/.patrol-bs.conf < ./.patrol-bs.conf
+load_config() {
+    # 1. Load from XDG config directory (profile-based)
+    local profile_config
+    profile_config=$(get_profile_config_file)
+    load_config_file "$profile_config"
+    
+    # 2. Load from home directory config (legacy location, overrides XDG)
+    load_config_file "$HOME/.patrol-bs.conf"
+    
+    # 3. Load from current directory config (project-specific, highest priority)
+    load_config_file ".patrol-bs.conf"
+    
+    # 4. Load from patrol-bs install directory if different
+    if [[ -n "${PATROL_BS_DIR:-}" && "$PATROL_BS_DIR" != "$PWD" ]]; then
+        load_config_file "$PATROL_BS_DIR/.patrol-bs.conf"
+    fi
+}
+
+# =============================================================================
+# VALIDATION
+# =============================================================================
+
+require_credentials() {
+    if [[ -z "$CREDENTIALS" ]]; then
+        log_error "BrowserStack credentials not set"
+        echo "Set via: --credentials, PATROL_BS_CREDENTIALS env var, or config file" >&2
+        exit 1
+    fi
+}
+
+require_project() {
+    if [[ -z "$PROJECT" ]]; then
+        log_warn "Project name not set, using 'Unnamed Project'"
+        PROJECT="Unnamed Project"
+    fi
+}
+
+validate_config_value() {
+    local config="$1"
+    if [[ "$config" != "dev" && "$config" != "prod" ]]; then
+        log_error "--config must be either 'dev' or 'prod', got: $config"
+        exit 1
+    fi
+}
+
+validate_json_array() {
+    local value="$1"
+    local name="$2"
+    
+    if ! echo "$value" | jq empty 2>/dev/null; then
+        log_error "$name must be a valid JSON array"
+        exit 1
+    fi
+}
+
+# =============================================================================
+# ENVIRONMENT DETECTION
+# =============================================================================
+
+detect_environment() {
+    if [[ -n "${CI:-}" || -n "${TF_BUILD:-}" || -n "${GITHUB_ACTIONS:-}" ]]; then
+        echo "ci"
+    else
+        echo "local"
+    fi
+}
+
+# =============================================================================
+# PUBSPEC PARSING
+# =============================================================================
+
+# Check if yq is available
+has_yq() {
+    command -v yq >/dev/null 2>&1
+}
+
+# Get value from pubspec.yaml
+get_pubspec_value() {
+    local yaml_path="$1"
+    local pubspec_path="${2:-pubspec.yaml}"
+    
+    # Try current directory first, then parent
+    if [[ ! -f "$pubspec_path" ]]; then
+        pubspec_path="../pubspec.yaml"
+    fi
+    
+    if [[ ! -f "$pubspec_path" ]]; then
+        return 1
+    fi
+    
+    if has_yq; then
+        yq "$yaml_path // \"\"" < "$pubspec_path" 2>/dev/null
+    else
+        return 1
+    fi
+}
+
+# Read config from pubspec.yaml with platform-specific fallback
+read_config_from_pubspec() {
+    local platform="$1"
+    local config=""
+    
+    if [[ "$platform" == "android" ]]; then
+        config=$(get_pubspec_value '.patrol.android.flavor' 2>/dev/null) || true
+    elif [[ "$platform" == "ios" ]]; then
+        config=$(get_pubspec_value '.patrol.ios.flavor' 2>/dev/null) || true
+    fi
+    
+    # Fall back to general patrol.flavor if platform-specific not found
+    if [[ -z "$config" ]]; then
+        config=$(get_pubspec_value '.patrol.flavor' 2>/dev/null) || true
+    fi
+    
+    echo "$config"
+}
+
+# =============================================================================
+# BUILD TYPE DETECTION
+# =============================================================================
+
+# Determine build type from patrol command arguments
+# Sets: BUILD_TYPE, TARGET_PASSED
+determine_build_type() {
+    local -a args=("$@")
+    local ask_for_build_type=false
+    # shellcheck disable=SC2034  # Variables are used by sourcing scripts
+    TARGET_PASSED=false
+    BUILD_TYPE=""
+    
+    local i=0
+    while [[ $i -lt ${#args[@]} ]]; do
+        case "${args[$i]}" in
+            -t|--target)
+                ((i++))
+                local target="${args[$i]:-}"
+                if [[ "$target" == *,* ]]; then
+                    ask_for_build_type=true
+                else
+                    local basename
+                    basename=$(basename "$target")
+                    if [[ "$basename" == *"."* ]]; then
+                        BUILD_TYPE="${basename%.*}"
+                    else
+                        BUILD_TYPE="feature:$basename"
+                    fi
+                fi
+                TARGET_PASSED=true
+                ;;
+            --exclude)
+                ask_for_build_type=true
+                ((i++))
+                ;;
+        esac
+        ((i++))
+    done
+    
+    if [[ "$TARGET_PASSED" != true ]]; then
+        BUILD_TYPE="all"
+    fi
+    
+    if $ask_for_build_type && [[ -t 0 ]]; then
+        printf "\nMultiple targets or exclude option passed.\nEnter build type: " >&2
+        read -r BUILD_TYPE
+        printf "\n" >&2
+    elif $ask_for_build_type; then
+        BUILD_TYPE="custom"
+    fi
+}
+
+# =============================================================================
+# ARGUMENT PARSING HELPERS
+# =============================================================================
+
+# Parse common build arguments that apply to both android and ios
+# This function processes arguments and sets global variables
+# Remaining arguments are stored in PATROL_ARGS array
+parse_build_args() {
+    local platform="$1"
+    shift
+    
+    # Initialize arrays
+    # shellcheck disable=SC2034  # Variables are used by sourcing scripts
+    PATROL_ARGS=()
+    
+    while [[ $# -gt 0 ]]; do
+        # shellcheck disable=SC2034  # Variables are used by sourcing scripts
+        case "$1" in
+            -h|--help)
+                return 1  # Signal to show help
+                ;;
+            --credentials)
+                shift
+                CREDENTIALS="${1:-}"
+                ;;
+            --project)
+                shift
+                PROJECT="${1:-}"
+                ;;
+            --devices)
+                shift
+                # Set platform-specific devices variable
+                if [[ "$platform" == "android" ]]; then
+                    ANDROID_DEVICES="${1:-}"
+                else
+                    IOS_DEVICES="${1:-}"
+                fi
+                ;;
+            --tablets)
+                # Switch to tablet devices
+                if [[ "$platform" == "android" ]]; then
+                    if [[ -n "$ANDROID_TABLETS" ]]; then
+                        ANDROID_DEVICES="$ANDROID_TABLETS"
+                    else
+                        log_warn "No tablet devices configured for $platform"
+                    fi
+                else
+                    if [[ -n "$IOS_TABLETS" ]]; then
+                        IOS_DEVICES="$IOS_TABLETS"
+                    else
+                        log_warn "No tablet devices configured for $platform"
+                    fi
+                fi
+                ;;
+            --timeout)
+                shift
+                TIMEOUT="${1:-}"
+                ;;
+            --config)
+                shift
+                CONFIG="${1:-}"
+                validate_config_value "$CONFIG"
+                ;;
+            --flavor)
+                shift
+                FLAVOR="${1:-}"
+                ;;
+            --slow-internet)
+                NETWORK_PROFILE="2g-gprs-lossy"
+                PATROL_ARGS+=("--slow-internet")
+                ;;
+            --skip-build)
+                SKIP_BUILD=1
+                ;;
+            --build-tag)
+                shift
+                BUILD_TAG="${1:-}"
+                ;;
+            --network-profile)
+                shift
+                NETWORK_PROFILE="${1:-}"
+                ;;
+            *)
+                # Pass through to patrol command
+                PATROL_ARGS+=("$1")
+                ;;
+        esac
+        shift
+    done
+    
+    return 0
+}
+
+# =============================================================================
+# API HELPERS
+# =============================================================================
+
+# Retry wrapper for API calls
+# Usage: retry_api <max_attempts> <sleep_seconds> <command>
+retry_api() {
+    local max_attempts="$1"
+    local sleep_seconds="$2"
+    shift 2
+    local command="$*"
+    
+    local attempt=1
+    while true; do
+        if eval "$command"; then
+            return 0
+        fi
+        
+        if [[ $attempt -ge $max_attempts ]]; then
+            log_error "Operation failed after $max_attempts attempts"
+            return 1
+        fi
+        
+        log_warn "Attempt $attempt failed, retrying in $sleep_seconds seconds..."
+        ((attempt++))
+        sleep "$sleep_seconds"
+    done
+}
+
+# Make a BrowserStack API request
+# Usage: bs_api <method> <endpoint> [curl_args...]
+bs_api() {
+    local method="$1"
+    local endpoint="$2"
+    shift 2
+    
+    curl --fail-with-body --silent \
+        --user "$CREDENTIALS" \
+        --request "$method" \
+        "https://api-cloud.browserstack.com$endpoint" \
+        "$@"
+}
+
+# Upload a file to BrowserStack
+# Usage: bs_upload <endpoint> <file_path>
+bs_upload() {
+    local endpoint="$1"
+    local file_path="$2"
+    
+    curl --fail-with-body \
+        --user "$CREDENTIALS" \
+        --request POST \
+        "https://api-cloud.browserstack.com$endpoint" \
+        --form "file=@$file_path"
+}
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+# Check if a command exists
+require_command() {
+    local cmd="$1"
+    local install_hint="${2:-}"
+    
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        log_error "Required command not found: $cmd"
+        if [[ -n "$install_hint" ]]; then
+            echo "Install with: $install_hint" >&2
+        fi
+        exit 1
+    fi
+}
+
+# Find a file matching a pattern
+find_file() {
+    local pattern="$1"
+    local search_path="${2:-$PWD}"
+    
+    find "$search_path" -name "$pattern" 2>/dev/null | head -1
+}
+

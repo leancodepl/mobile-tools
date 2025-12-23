@@ -1,0 +1,304 @@
+#!/usr/bin/env bash
+#
+# patrol-bs-ios - iOS subcommand for patrol-bs
+#
+# This file is sourced by patrol-bs and should not be executed directly.
+#
+
+# =============================================================================
+# HELP
+# =============================================================================
+
+show_ios_help() {
+    cat <<'EOF'
+patrol-bs ios - Build and upload iOS apps to BrowserStack
+
+USAGE:
+    patrol-bs ios [options] [-- patrol_args...]
+
+OPTIONS:
+    --credentials <user:key>    BrowserStack credentials
+    --project <name>            Project name on BrowserStack
+    --devices <json>            JSON array of devices to test on
+    --tablets                   Use tablet devices instead of phones
+    --config <dev|prod>         Build configuration
+    --flavor <name>             iOS build flavor (scheme)
+    --timeout <seconds>         Idle timeout (default: 240)
+    --network-profile <name>    Network profile (default: reset)
+    --slow-internet             Use slow internet (2g-gprs-lossy)
+    --skip-build                Skip building, only upload existing artifacts
+    --build-tag <tag>           Custom build tag for BrowserStack
+    --test-plan <name>          XCTest plan name (default: TestPlan)
+    -h, --help                  Show this help message
+
+    Any other arguments are passed through to 'patrol build ios'.
+
+ENVIRONMENT VARIABLES:
+    PATROL_BS_CREDENTIALS       BrowserStack credentials
+    PATROL_BS_PROJECT           Project name
+    PATROL_BS_IOS_DEVICES       Default devices JSON array
+    PATROL_BS_IOS_TABLETS       Tablet devices JSON array
+    PATROL_BS_TIMEOUT           Idle timeout
+
+DEFAULT DEVICES:
+    If not specified, uses: ["iPhone 15 Pro-17"]
+
+EXAMPLES:
+    # Basic usage with target
+    patrol-bs ios --target integration_test/app_test.dart
+
+    # With specific devices and config
+    patrol-bs ios --devices '["iPhone 16 Pro-18"]' --config prod
+
+    # Skip build (use existing artifacts)
+    patrol-bs ios --skip-build
+
+    # Custom test plan name
+    patrol-bs ios --test-plan MyTestPlan
+EOF
+}
+
+# =============================================================================
+# iOS-SPECIFIC ARGUMENT PARSING
+# =============================================================================
+
+parse_ios_args() {
+    TEST_PLAN="TestPlan"
+    
+    # First pass: extract iOS-specific args
+    local args=("$@")
+    local filtered=()
+    
+    local i=0
+    while [[ $i -lt ${#args[@]} ]]; do
+        case "${args[$i]}" in
+            --test-plan)
+                ((i++))
+                TEST_PLAN="${args[$i]:-TestPlan}"
+                ;;
+            *)
+                filtered+=("${args[$i]}")
+                ;;
+        esac
+        ((i++))
+    done
+    
+    # Now parse common build args
+    if ! parse_build_args "ios" "${filtered[@]}"; then
+        return 1
+    fi
+    
+    return 0
+}
+
+# =============================================================================
+# MAIN COMMAND
+# =============================================================================
+
+cmd_ios() {
+    # Load configuration
+    load_config
+    
+    # Set iOS-specific defaults if not set by config/env
+    : "${IOS_DEVICES:='["iPhone 15 Pro-17"]'}"
+    : "${IOS_TABLETS:='["iPad Pro 12.9 2022-16"]'}"
+    
+    # Parse arguments
+    if ! parse_ios_args "$@"; then
+        show_ios_help
+        exit 0
+    fi
+    
+    # Validate required settings
+    require_credentials
+    require_project
+    require_command "jq"
+    require_command "curl"
+    require_command "plutil" "Available on macOS by default"
+    require_command "zip"
+    
+    # Try to read config from pubspec if not set
+    if [[ -z "$CONFIG" ]]; then
+        CONFIG=$(read_config_from_pubspec "ios") || true
+    fi
+    
+    # Use flavor from config if not explicitly set
+    if [[ -z "$FLAVOR" && -n "$CONFIG" ]]; then
+        FLAVOR="$CONFIG"
+    fi
+    
+    # Determine build type for tagging
+    determine_build_type "${PATROL_ARGS[@]:-}"
+    
+    local env
+    env=$(detect_environment)
+    
+    if [[ -z "$BUILD_TAG" ]]; then
+        BUILD_TAG="$env:$BUILD_TYPE"
+    fi
+    
+    # Build flavor-specific paths
+    local flavor_separator="-"
+    local runner_prefix="Runner"
+    if [[ -n "$FLAVOR" ]]; then
+        flavor_separator="-$FLAVOR-"
+        runner_prefix="$FLAVOR"
+    fi
+    
+    # Adjust test plan name based on config/flavor
+    if [[ "$CONFIG" == "prod" || "$FLAVOR" == "prod" ]]; then
+        # Check if a prod-specific test plan exists
+        if [[ "$TEST_PLAN" == "TestPlan" ]]; then
+            TEST_PLAN="TestPlanProd"
+        fi
+    fi
+    
+    # Log configuration
+    log_info "Project: $PROJECT"
+    log_info "Devices: $IOS_DEVICES"
+    log_info "Network profile: $NETWORK_PROFILE"
+    log_info "Timeout: $TIMEOUT"
+    log_info "Build tag: $BUILD_TAG"
+    log_info "Test plan: $TEST_PLAN"
+    [[ -n "$CONFIG" ]] && log_info "Config: $CONFIG"
+    [[ -n "$FLAVOR" ]] && log_info "Flavor: $FLAVOR"
+    
+    # Build the app
+    if [[ "$SKIP_BUILD" != 1 ]]; then
+        log_step "Building iOS app..."
+        
+        local build_args=("--release")
+        [[ -n "$CONFIG" ]] && build_args+=("--config" "$CONFIG")
+        
+        if ! patrol build ios "${build_args[@]}" "${PATROL_ARGS[@]:-}" >&2; then
+            log_error "Build failed"
+            exit 1
+        fi
+    else
+        log_info "Skipping build (--skip-build)"
+    fi
+    
+    # Create zip archive
+    log_step "Creating zip archive of test files..."
+    
+    local products_dir="build/ios_integ/Build/Products"
+    local release_dir="${products_dir}/Release${flavor_separator}iphoneos"
+    
+    if [[ ! -d "$release_dir" ]]; then
+        log_error "Release directory not found: $release_dir"
+        exit 1
+    fi
+    
+    # Create IPA
+    (
+        cd "$products_dir" || exit 1
+        rm -rf Payload && mkdir -p Payload
+        cp -r "Release${flavor_separator}iphoneos/Runner.app" Payload
+        zip -r Runner.ipa Payload >/dev/null
+    )
+    
+    # Create test zip
+    (
+        cd "$release_dir" || exit 1
+        rm -rf ios_tests.zip
+        
+        # Find xctestrun file
+        local xctestrun_file
+        xctestrun_file=$(find .. -name "${runner_prefix}_${TEST_PLAN}_iphoneos*.xctestrun" 2>/dev/null | head -1)
+        
+        if [[ -z "$xctestrun_file" ]]; then
+            log_error "Could not find xctestrun file matching: ${runner_prefix}_${TEST_PLAN}_iphoneos*.xctestrun"
+            exit 1
+        fi
+        
+        # BrowserStack fails if DiagnosticCollectionPolicy is present
+        plutil -remove 'TestConfigurations.TestTargets.DiagnosticCollectionPolicy' "$xctestrun_file" 2>/dev/null || true
+        plutil -remove 'TestConfigurations.0.TestTargets.0.DiagnosticCollectionPolicy' "$xctestrun_file" 2>/dev/null || true
+        
+        local xctestrun_name
+        xctestrun_name=$(basename "$xctestrun_file")
+        cp "$xctestrun_file" .
+        
+        zip -r ios_tests.zip "$xctestrun_name" RunnerUITests-Runner.app >/dev/null
+    )
+    
+    log_success "Created zip archives"
+    
+    # Set paths
+    local app_path="$PWD/$products_dir/Runner.ipa"
+    local test_path="$PWD/$release_dir/ios_tests.zip"
+    
+    if [[ ! -f "$app_path" ]]; then
+        log_error "App IPA not found: $app_path"
+        exit 1
+    fi
+    
+    if [[ ! -f "$test_path" ]]; then
+        log_error "Test zip not found: $test_path"
+        exit 1
+    fi
+    
+    # Upload app
+    log_step "Uploading app..."
+    
+    local app_response
+    if ! app_response=$(bs_upload "/app-automate/xcuitest/v2/app" "$app_path"); then
+        log_error "Failed to upload app"
+        echo "$app_response" >&2
+        exit 1
+    fi
+    
+    local app_url
+    app_url=$(echo "$app_response" | jq --raw-output .app_url)
+    log_success "Uploaded app: $app_url"
+    
+    # Upload test suite
+    log_step "Uploading test suite..."
+    
+    local test_response
+    if ! test_response=$(bs_upload "/app-automate/xcuitest/v2/test-suite" "$test_path"); then
+        log_error "Failed to upload test suite"
+        echo "$test_response" >&2
+        exit 1
+    fi
+    
+    local test_url
+    test_url=$(echo "$test_response" | jq --raw-output .test_suite_url)
+    log_success "Uploaded test: $test_url"
+    
+    # Schedule test execution
+    log_step "Scheduling test execution..."
+    
+    local run_response
+    if ! run_response=$(bs_api POST "/app-automate/xcuitest/v2/xctestrun-build" \
+        -H "Content-Type: application/json" \
+        --data-binary @- <<EOF
+{
+    "app": "$app_url",
+    "testSuite": "$test_url",
+    "project": "$PROJECT",
+    "devices": $IOS_DEVICES,
+    "singleRunnerInvocation": true,
+    "deviceLogs": true,
+    "enableResultBundle": true,
+    "networkLogs": false,
+    "networkProfile": "$NETWORK_PROFILE",
+    "idleTimeout": $TIMEOUT,
+    "buildTag": "$BUILD_TAG"
+}
+EOF
+    ); then
+        log_error "Failed to schedule test execution"
+        echo "$run_response" >&2
+        exit 1
+    fi
+    
+    log_success "Test execution scheduled"
+    echo "$run_response" >&2
+    
+    # Output build ID (stdout for scripting)
+    local build_id
+    build_id=$(echo "$run_response" | jq --raw-output .build_id)
+    echo "$build_id"
+}
+
