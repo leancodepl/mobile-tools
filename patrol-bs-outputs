@@ -21,7 +21,7 @@ ARGUMENTS:
 
 OPTIONS:
     --credentials <user:key>    BrowserStack credentials
-    --output-dir <path>         Directory to save outputs (default: ./bs_outputs)
+    --output-dir <path>         Directory to save outputs (default: current directory)
     --only-report               Only check build status, don't download artifacts
     --retry-limit <n>           Max retry attempts for downloads (default: 5)
     --retry-delay <seconds>     Delay between retries (default: 30)
@@ -131,7 +131,7 @@ retry_download() {
 
 parse_outputs_args() {
     BUILD_ID=""
-    OUTPUT_DIR="./bs_outputs"
+    OUTPUT_DIR="."
     ONLY_REPORT=false
     VERBOSE=false
     RETRY_LIMIT=5
@@ -150,7 +150,7 @@ parse_outputs_args() {
                 ;;
             --output-dir)
                 shift
-                OUTPUT_DIR="${1:-./bs_outputs}"
+                OUTPUT_DIR="${1:-.}"
                 ;;
             --only-report)
                 ONLY_REPORT=true
