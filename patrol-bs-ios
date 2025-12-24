@@ -37,7 +37,7 @@ OPTIONS:
 ENVIRONMENT VARIABLES:
     PATROL_BS_CREDENTIALS       BrowserStack credentials
     PATROL_BS_IOS_DEVICES       Default devices JSON array
-    PATROL_BS_API_PARAMS        Default API parameters JSON
+    PATROL_BS_IOS_API_PARAMS    Default API parameters JSON
 
 DEFAULT DEVICES:
     If not specified, uses: $DEFAULT_IOS_DEVICES
@@ -100,6 +100,7 @@ parse_ios_args() {
 cmd_ios() {
     # Set iOS-specific defaults if not set by env
     : "${IOS_DEVICES:=$DEFAULT_IOS_DEVICES}"
+    : "${API_PARAMS:=${PATROL_BS_IOS_API_PARAMS:-}}"
     
     # Parse arguments
     if ! parse_ios_args "$@"; then

@@ -34,9 +34,9 @@ OPTIONS:
     Any other arguments are passed through to 'patrol build android'.
 
 ENVIRONMENT VARIABLES:
-    PATROL_BS_CREDENTIALS       BrowserStack credentials
-    PATROL_BS_ANDROID_DEVICES   Default devices JSON array
-    PATROL_BS_API_PARAMS        Default API parameters JSON
+    PATROL_BS_CREDENTIALS          BrowserStack credentials
+    PATROL_BS_ANDROID_DEVICES      Default devices JSON array
+    PATROL_BS_ANDROID_API_PARAMS   Default API parameters JSON
 
 DEFAULT DEVICES:
     If not specified, uses: $DEFAULT_ANDROID_DEVICES
@@ -66,6 +66,7 @@ EOF
 cmd_android() {
     # Set Android-specific defaults if not set by env
     : "${ANDROID_DEVICES:=$DEFAULT_ANDROID_DEVICES}"
+    : "${API_PARAMS:=${PATROL_BS_ANDROID_API_PARAMS:-}}"
     
     # Parse arguments
     if ! parse_build_args "android" "$@"; then

@@ -23,7 +23,7 @@ IOS_DEVICES="${PATROL_BS_IOS_DEVICES:-}"
 # shellcheck disable=SC2034  # Variables are used by sourcing scripts
 SKIP_BUILD="${PATROL_BS_SKIP_BUILD:-0}"
 FLAVOR=""
-API_PARAMS="${PATROL_BS_API_PARAMS:-}"
+API_PARAMS=""
 
 # =============================================================================
 # LOGGING
