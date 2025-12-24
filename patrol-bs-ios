@@ -37,6 +37,7 @@ OPTIONS:
 ENVIRONMENT VARIABLES:
     PATROL_BS_CREDENTIALS       BrowserStack credentials
     PATROL_BS_IOS_DEVICES       Default devices JSON array
+    PATROL_BS_API_PARAMS        Default API parameters JSON
 
 DEFAULT DEVICES:
     If not specified, uses: $DEFAULT_IOS_DEVICES
