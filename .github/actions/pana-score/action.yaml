@@ -44,12 +44,20 @@ runs:
         PACKAGE_PATH: ${{ inputs.path }}
       run: |
         set -euo pipefail # so tee doesn't mask a pana that fell over
-        pana --json "$PACKAGE_PATH" | tee "$RUNNER_TEMP/pana.json" || true
 
-        package_name="$(awk -F': *' '/^name:/{print $2; exit}' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null | tr -d "\"'")"
+        # Resolved and reported first, and shielded from failing the step, so
+        # a later crash still leaves this package identifiable and out of the
+        # shared/generic status context that collides across packages.
+        package_name="$(awk -F': *' '/^name:/{print $2; exit}' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null | tr -d "\"'")" || true
         if [ -z "$package_name" ]; then
-          package_name="$(basename "$(cd "$PACKAGE_PATH" && pwd)")"
+          package_name="$(basename "$(cd "$PACKAGE_PATH" && pwd)" 2>/dev/null)" || true
         fi
+        if [ -z "$package_name" ]; then
+          package_name="unknown"
+        fi
+        echo "package-name=$package_name" >> "$GITHUB_OUTPUT"
+
+        pana --json "$PACKAGE_PATH" | tee "$RUNNER_TEMP/pana.json" || true
 
         granted="$(jq -r '.scores.grantedPoints // empty' "$RUNNER_TEMP/pana.json" 2>/dev/null || true)"
         max="$(jq -r '.scores.maxPoints // empty' "$RUNNER_TEMP/pana.json" 2>/dev/null || true)"
@@ -74,7 +82,6 @@ runs:
         echo "score=$score" >> "$GITHUB_OUTPUT"
         echo "state=$state" >> "$GITHUB_OUTPUT"
         echo "valid_score=$valid_score" >> "$GITHUB_OUTPUT"
-        echo "package-name=$package_name" >> "$GITHUB_OUTPUT"
 
         {
           echo "## pana score for $package_name: $score"
@@ -108,12 +115,23 @@ runs:
         STATE: ${{ steps.score.outputs.state || 'error' }}
         SCORE: ${{ steps.score.outputs.score || 'pana produced no score' }}
         PACKAGE_NAME: ${{ steps.score.outputs.package-name }}
+        PACKAGE_PATH: ${{ inputs.path }}
         TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
-        context="pana"
-        if [ -n "$PACKAGE_NAME" ]; then
-          context="pana ($PACKAGE_NAME)"
+        # Falls back to resolving the name itself (score step may have been
+        # skipped entirely, e.g. if an earlier step failed), so this never
+        # degenerates into the shared "pana" context that collides across packages.
+        package_name="$PACKAGE_NAME"
+        if [ -z "$package_name" ]; then
+          package_name="$(awk -F': *' '/^name:/{print $2; exit}' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null | tr -d "\"'")" || true
         fi
+        if [ -z "$package_name" ]; then
+          package_name="$(basename "$(cd "$PACKAGE_PATH" && pwd)" 2>/dev/null)" || true
+        fi
+        if [ -z "$package_name" ]; then
+          package_name="unknown"
+        fi
+        context="pana ($package_name)"
 
         gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
           --silent \

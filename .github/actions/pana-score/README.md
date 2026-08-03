@@ -34,8 +34,9 @@ publishing its status and summary.
 
 - `score`: e.g. `98/100`.
 - `state`: one of `success`, `failure`, `error`.
-- `package-name`: resolved from the package's `pubspec.yaml` (or its directory
-  name), used to namespace the commit status context.
+- `package-name`: resolved from the package's `pubspec.yaml` (falling back to
+  its directory name, then `unknown`), used to namespace the commit status
+  context. Always set, even if the score step itself fails.
 
 ## Required workflow permissions
 
