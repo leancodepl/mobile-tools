@@ -13,11 +13,14 @@ inputs:
 
 outputs:
   score:
-    description: "Package score text in the form `package-name: granted/max`."
+    description: "Package score text in the form `granted/max`."
     value: ${{ steps.score.outputs.score }}
   state:
     description: pana result state (`success`, `failure`, or `error`).
     value: ${{ steps.score.outputs.state }}
+  package-name:
+    description: Name resolved from the package's `pubspec.yaml` (or its directory name).
+    value: ${{ steps.score.outputs.package-name }}
 
 runs:
   using: composite
@@ -52,13 +55,13 @@ runs:
         max="$(jq -r '.scores.maxPoints // empty' "$RUNNER_TEMP/pana.json" 2>/dev/null || true)"
 
         valid_score=true
-        score="${package_name}: ${granted}/${max}"
+        score="${granted}/${max}"
         state=failure
 
         case "$granted$max" in
           '' | *[!0-9]*)
             valid_score=false
-            score="${package_name}: pana produced no score"
+            score="pana produced no score"
             state=error
             echo "::error title=pana score::no score in pana's JSON report"
             ;;
@@ -71,9 +74,10 @@ runs:
         echo "score=$score" >> "$GITHUB_OUTPUT"
         echo "state=$state" >> "$GITHUB_OUTPUT"
         echo "valid_score=$valid_score" >> "$GITHUB_OUTPUT"
+        echo "package-name=$package_name" >> "$GITHUB_OUTPUT"
 
         {
-          echo "## pana score: $score"
+          echo "## pana score for $package_name: $score"
           echo
           jq -r '(.report.sections // [])[]
             | "- \(if .grantedPoints == .maxPoints then ":white_check_mark:" else ":x:" end) \(.title): \(.grantedPoints)/\(.maxPoints)"' \
@@ -103,12 +107,18 @@ runs:
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         STATE: ${{ steps.score.outputs.state || 'error' }}
         SCORE: ${{ steps.score.outputs.score || 'pana produced no score' }}
+        PACKAGE_NAME: ${{ steps.score.outputs.package-name }}
         TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
+        context="pana"
+        if [ -n "$PACKAGE_NAME" ]; then
+          context="pana ($PACKAGE_NAME)"
+        fi
+
         gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
           --silent \
           -f state="$STATE" \
-          -f context='pana' \
+          -f context="$context" \
           -f description="$SCORE" \
           -f target_url="$TARGET_URL"
 
