@@ -45,9 +45,7 @@ runs:
       run: |
         set -euo pipefail # so tee doesn't mask a pana that fell over
 
-        # Resolved and reported first, and shielded from failing the step, so
-        # a later crash still leaves this package identifiable and out of the
-        # shared/generic status context that collides across packages.
+        # resolved first and shielded from set -e so a later crash still reports a name
         package_name="$(awk -F': *' '/^name:/{print $2; exit}' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null | tr -d "\"'")" || true
         if [ -z "$package_name" ]; then
           package_name="$(basename "$(cd "$PACKAGE_PATH" && pwd)" 2>/dev/null)" || true
@@ -118,9 +116,7 @@ runs:
         PACKAGE_PATH: ${{ inputs.path }}
         TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
-        # Falls back to resolving the name itself (score step may have been
-        # skipped entirely, e.g. if an earlier step failed), so this never
-        # degenerates into the shared "pana" context that collides across packages.
+        # re-resolved in case the score step was skipped entirely
         package_name="$PACKAGE_NAME"
         if [ -z "$package_name" ]; then
           package_name="$(awk -F': *' '/^name:/{print $2; exit}' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null | tr -d "\"'")" || true
