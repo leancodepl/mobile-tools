@@ -6,7 +6,9 @@ Self-contained composite action that:
 - installs and runs `pana --json`,
 - exposes `score` and `state` outputs,
 - writes Markdown details to `$GITHUB_STEP_SUMMARY`,
-- reports a `pana` commit status on the head SHA (fork-safe for pull requests),
+- reports a `pana (<package-name>)` commit status on the head SHA (fork-safe for
+  pull requests), so scoring several packages in one workflow gives each its own
+  status entry instead of overwriting a shared one,
 - fails when no valid score is present.
 
 ## Usage
@@ -32,6 +34,8 @@ publishing its status and summary.
 
 - `score`: e.g. `package-name: 98/100`.
 - `state`: one of `success`, `failure`, `error`.
+- `package-name`: resolved from the package's `pubspec.yaml` (or its directory
+  name), used to namespace the commit status context.
 
 ## Required workflow permissions
 

@@ -18,6 +18,9 @@ outputs:
   state:
     description: pana result state (`success`, `failure`, or `error`).
     value: ${{ steps.score.outputs.state }}
+  package-name:
+    description: Name resolved from the package's `pubspec.yaml` (or its directory name).
+    value: ${{ steps.score.outputs.package-name }}
 
 runs:
   using: composite
@@ -71,6 +74,7 @@ runs:
         echo "score=$score" >> "$GITHUB_OUTPUT"
         echo "state=$state" >> "$GITHUB_OUTPUT"
         echo "valid_score=$valid_score" >> "$GITHUB_OUTPUT"
+        echo "package-name=$package_name" >> "$GITHUB_OUTPUT"
 
         {
           echo "## pana score: $score"
@@ -103,12 +107,18 @@ runs:
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         STATE: ${{ steps.score.outputs.state || 'error' }}
         SCORE: ${{ steps.score.outputs.score || 'pana produced no score' }}
+        PACKAGE_NAME: ${{ steps.score.outputs.package-name }}
         TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
+        context="pana"
+        if [ -n "$PACKAGE_NAME" ]; then
+          context="pana ($PACKAGE_NAME)"
+        fi
+
         gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
           --silent \
           -f state="$STATE" \
-          -f context='pana' \
+          -f context="$context" \
           -f description="$SCORE" \
           -f target_url="$TARGET_URL"
 
