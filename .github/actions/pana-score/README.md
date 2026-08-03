@@ -32,7 +32,7 @@ publishing its status and summary.
 
 ## Outputs
 
-- `score`: e.g. `package-name: 98/100`.
+- `score`: e.g. `98/100`.
 - `state`: one of `success`, `failure`, `error`.
 - `package-name`: resolved from the package's `pubspec.yaml` (or its directory
   name), used to namespace the commit status context.
