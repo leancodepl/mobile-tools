@@ -43,74 +43,53 @@ runs:
         set -euo pipefail # so tee doesn't mask a pana that fell over
         pana --json "$PACKAGE_PATH" | tee "$RUNNER_TEMP/pana.json" || true
 
-        python3 - <<'PY'
-        import json
-        import os
-        import re
-        from pathlib import Path
+        package_name="$(awk -F': *' '/^name:/{print $2; exit}' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null | tr -d "\"'")"
+        if [ -z "$package_name" ]; then
+          package_name="$(basename "$(cd "$PACKAGE_PATH" && pwd)")"
+        fi
 
-        package_path = os.environ["PACKAGE_PATH"]
-        package_root = Path(package_path).resolve()
-        package_name = package_root.name or "package"
-        pubspec_path = package_root / "pubspec.yaml"
-        if pubspec_path.exists():
-          for line in pubspec_path.read_text(encoding="utf-8").splitlines():
-            match = re.match(r"^name:\s*[\"']?([^\"'\s#]+)", line)
-            if match:
-              package_name = match.group(1)
-              break
+        granted="$(jq -r '.scores.grantedPoints // empty' "$RUNNER_TEMP/pana.json" 2>/dev/null || true)"
+        max="$(jq -r '.scores.maxPoints // empty' "$RUNNER_TEMP/pana.json" 2>/dev/null || true)"
 
-        score_state = "error"
-        score_text = f"{package_name}: pana produced no score"
-        valid_score = False
-        sections = []
+        valid_score=true
+        score="${package_name}: ${granted}/${max}"
+        state=failure
 
-        try:
-          with open(Path(os.environ["RUNNER_TEMP"]) / "pana.json", encoding="utf-8") as file:
-            report = json.load(file)
-          scores = report.get("scores") or {}
-          granted = scores.get("grantedPoints")
-          maximum = scores.get("maxPoints")
-          sections = ((report.get("report") or {}).get("sections") or [])
-          if isinstance(granted, int) and isinstance(maximum, int):
-            score_text = f"{package_name}: {granted}/{maximum}"
-            score_state = "success" if granted == maximum else "failure"
-            valid_score = True
-        except Exception:
-          pass
+        case "$granted$max" in
+          '' | *[!0-9]*)
+            valid_score=false
+            score="${package_name}: pana produced no score"
+            state=error
+            echo "::error title=pana score::no score in pana's JSON report"
+            ;;
+        esac
 
-        if not valid_score:
-          print("::error title=pana score::no score in pana's JSON report")
+        if [ "$valid_score" = true ] && [ "$granted" = "$max" ]; then
+          state=success
+        fi
 
-        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-          output.write(f"score={score_text}\n")
-          output.write(f"state={score_state}\n")
-          output.write(f"valid_score={'true' if valid_score else 'false'}\n")
+        echo "score=$score" >> "$GITHUB_OUTPUT"
+        echo "state=$state" >> "$GITHUB_OUTPUT"
+        echo "valid_score=$valid_score" >> "$GITHUB_OUTPUT"
 
-        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-          summary.write(f"## pana score: {score_text}\n\n")
-          for section in sections:
-            granted = section.get("grantedPoints")
-            maximum = section.get("maxPoints")
-            if isinstance(granted, int) and isinstance(maximum, int):
-              icon = ":white_check_mark:" if granted == maximum else ":x:"
-              title = section.get("title", "")
-              summary.write(f"- {icon} {title}: {granted}/{maximum}\n")
+        {
+          echo "## pana score: $score"
+          echo
+          jq -r '(.report.sections // [])[]
+            | "- \(if .grantedPoints == .maxPoints then ":white_check_mark:" else ":x:" end) \(.title): \(.grantedPoints)/\(.maxPoints)"' \
+            "$RUNNER_TEMP/pana.json" || true
 
-          deductions = [
-            section.get("summary")
-            for section in sections
-            if isinstance(section.get("grantedPoints"), int)
-            and isinstance(section.get("maxPoints"), int)
-            and section.get("grantedPoints") < section.get("maxPoints")
-            and section.get("summary")
-          ]
-          if deductions:
-            summary.write("\n<details><summary>Deductions</summary>\n\n")
-            for deduction in deductions:
-              summary.write(f"{deduction}\n")
-            summary.write("\n</details>\n")
-        PY
+          if [ "$valid_score" = true ] && [ "$granted" != "$max" ]; then
+            echo
+            echo '<details><summary>Deductions</summary>'
+            echo
+            jq -r '(.report.sections // [])[]
+              | select(.grantedPoints < .maxPoints)
+              | .summary' "$RUNNER_TEMP/pana.json" || true
+            echo
+            echo '</details>'
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Report score as commit status
       if: |
@@ -126,31 +105,12 @@ runs:
         SCORE: ${{ steps.score.outputs.score || 'pana produced no score' }}
         TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
-        python3 - <<'PY'
-        import json
-        import os
-        import urllib.request
-
-        payload = {
-          "state": os.environ["STATE"],
-          "context": "pana",
-          "description": os.environ["SCORE"][:140],
-          "target_url": os.environ["TARGET_URL"],
-        }
-
-        request = urllib.request.Request(
-          url=f"{os.environ['GITHUB_API_URL']}/repos/{os.environ['GITHUB_REPOSITORY']}/statuses/{os.environ['SHA']}",
-          data=json.dumps(payload).encode("utf-8"),
-          headers={
-            "Authorization": "Bearer " + os.environ["GH_TOKEN"],
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-          },
-          method="POST",
-        )
-        urllib.request.urlopen(request).read()
-        PY
+        gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+          --silent \
+          -f state="$STATE" \
+          -f context='pana' \
+          -f description="$SCORE" \
+          -f target_url="$TARGET_URL"
 
     - name: Require a valid pana score
       if: steps.score.outputs.valid_score != 'true'
