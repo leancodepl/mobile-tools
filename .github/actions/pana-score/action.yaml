@@ -1,0 +1,120 @@
+name: Score package with pana
+description: >
+  Set up stable Dart, run pana on a package, publish a summary, and report a
+  `pana` commit status.
+
+inputs:
+  path:
+    description: Root directory of a Dart package.
+    default: '.'
+  report-status:
+    description: Whether to report the score as a commit status.
+    default: 'true'
+
+outputs:
+  score:
+    description: "Package score text in the form `package-name: granted/max`."
+    value: ${{ steps.score.outputs.score }}
+  state:
+    description: pana result state (`success`, `failure`, or `error`).
+    value: ${{ steps.score.outputs.state }}
+
+runs:
+  using: composite
+
+  steps:
+    - name: Set up stable Dart for pana
+      uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
+      with:
+        sdk: stable # the score has to be the one pub.dev will give
+
+    - name: Install pana
+      shell: bash
+      run: |
+        dart pub global activate pana
+        echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+    - name: Score package
+      id: score
+      shell: bash
+      env:
+        PACKAGE_PATH: ${{ inputs.path }}
+      run: |
+        set -euo pipefail # so tee doesn't mask a pana that fell over
+        pana --json "$PACKAGE_PATH" | tee "$RUNNER_TEMP/pana.json" || true
+
+        package_name="$(awk -F': *' '/^name:/{print $2; exit}' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null | tr -d "\"'")"
+        if [ -z "$package_name" ]; then
+          package_name="$(basename "$(cd "$PACKAGE_PATH" && pwd)")"
+        fi
+
+        granted="$(jq -r '.scores.grantedPoints // empty' "$RUNNER_TEMP/pana.json" 2>/dev/null || true)"
+        max="$(jq -r '.scores.maxPoints // empty' "$RUNNER_TEMP/pana.json" 2>/dev/null || true)"
+
+        valid_score=true
+        score="${package_name}: ${granted}/${max}"
+        state=failure
+
+        case "$granted$max" in
+          '' | *[!0-9]*)
+            valid_score=false
+            score="${package_name}: pana produced no score"
+            state=error
+            echo "::error title=pana score::no score in pana's JSON report"
+            ;;
+        esac
+
+        if [ "$valid_score" = true ] && [ "$granted" = "$max" ]; then
+          state=success
+        fi
+
+        echo "score=$score" >> "$GITHUB_OUTPUT"
+        echo "state=$state" >> "$GITHUB_OUTPUT"
+        echo "valid_score=$valid_score" >> "$GITHUB_OUTPUT"
+
+        {
+          echo "## pana score: $score"
+          echo
+          jq -r '(.report.sections // [])[]
+            | "- \(if .grantedPoints == .maxPoints then ":white_check_mark:" else ":x:" end) \(.title): \(.grantedPoints)/\(.maxPoints)"' \
+            "$RUNNER_TEMP/pana.json" || true
+
+          if [ "$valid_score" = true ] && [ "$granted" != "$max" ]; then
+            echo
+            echo '<details><summary>Deductions</summary>'
+            echo
+            jq -r '(.report.sections // [])[]
+              | select(.grantedPoints < .maxPoints)
+              | .summary' "$RUNNER_TEMP/pana.json" || true
+            echo
+            echo '</details>'
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Report score as commit status
+      if: |
+        always() &&
+        inputs.report-status == 'true' &&
+        (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository)
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        STATE: ${{ steps.score.outputs.state || 'error' }}
+        SCORE: ${{ steps.score.outputs.score || 'pana produced no score' }}
+        TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+          --silent \
+          -f state="$STATE" \
+          -f context='pana' \
+          -f description="$SCORE" \
+          -f target_url="$TARGET_URL"
+
+    - name: Require a valid pana score
+      if: steps.score.outputs.valid_score != 'true'
+      shell: bash
+      run: |
+        echo "::error title=pana score::no score in pana's JSON report"
+        exit 1
