@@ -1,7 +1,7 @@
 name: Score package with pana
 description: >
-  Set up stable Dart, run pana on a package, publish a summary, and report a
-  `pana` commit status.
+  Set up stable Dart (or Flutter, for packages that need it), run pana on a
+  package, publish a summary, and report a `pana` commit status.
 
 inputs:
   path:
@@ -26,9 +26,25 @@ runs:
   using: composite
 
   steps:
+    # Packages that depend on the Flutter SDK (`sdk: flutter` in pubspec.yaml)
+    # need `flutter` on PATH: pana shells out to `flutter pub` for them, and
+    # falls over hard (not just a lower score) if only plain Dart is present.
+    - name: Check whether the package requires Flutter
+      id: package-check
+      shell: bash
+      env:
+        PACKAGE_PATH: ${{ inputs.path }}
+      run: |
+        needs_flutter=false
+        if grep -qE '^\s*sdk:\s*flutter\s*$' "$PACKAGE_PATH/pubspec.yaml" 2>/dev/null; then
+          needs_flutter=true
+        fi
+        echo "needs-flutter=$needs_flutter" >> "$GITHUB_OUTPUT"
+
     # Avoids re-downloading (and colliding with leftover files) when Dart is already up to date.
     - name: Check for an up-to-date stable Dart SDK
       id: dart-check
+      if: steps.package-check.outputs.needs-flutter != 'true'
       shell: bash
       run: |
         latest="$(curl -fsSL https://storage.googleapis.com/dart-archive/channels/stable/release/latest/VERSION | jq -r '.version' || true)"
@@ -43,15 +59,22 @@ runs:
         echo "up-to-date=$up_to_date" >> "$GITHUB_OUTPUT"
 
     - name: Clear stale Dart SDK download
-      if: steps.dart-check.outputs.up-to-date != 'true'
+      if: steps.package-check.outputs.needs-flutter != 'true' && steps.dart-check.outputs.up-to-date != 'true'
       shell: bash
       run: rm -f "$RUNNER_TEMP"/dartsdk-*.zip
 
     - name: Set up stable Dart for pana
-      if: steps.dart-check.outputs.up-to-date != 'true'
+      if: steps.package-check.outputs.needs-flutter != 'true' && steps.dart-check.outputs.up-to-date != 'true'
       uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
       with:
         sdk: stable # the score has to be the one pub.dev will give
+
+    - name: Set up stable Flutter for pana
+      if: steps.package-check.outputs.needs-flutter == 'true'
+      uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      with:
+        channel: stable # the score has to be the one pub.dev will give
+        cache: true
 
     - name: Install pana
       shell: bash

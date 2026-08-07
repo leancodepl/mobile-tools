@@ -2,7 +2,9 @@
 
 Self-contained composite action that:
 
-- sets up stable Dart (pub.dev-compatible scoring runtime),
+- sets up a pub.dev-compatible scoring runtime: stable Dart, or stable
+  Flutter for packages that declare `sdk: flutter` in `pubspec.yaml` (pana
+  shells out to `flutter pub` for those, and fails hard without it),
 - installs and runs `pana --json`,
 - exposes `score` and `state` outputs,
 - writes Markdown details to `$GITHUB_STEP_SUMMARY`,
