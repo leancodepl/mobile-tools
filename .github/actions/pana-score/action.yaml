@@ -76,6 +76,33 @@ runs:
         channel: stable # the score has to be the one pub.dev will give
         cache: true
 
+    # pana shells out to these WebP tools to score example/README screenshots.
+    # Without them it doesn't error clearly, it just fails that check (or the
+    # whole run) with an opaque "No such file or directory".
+    # See: https://github.com/dart-lang/pana/issues/1553
+    - name: Check for webp tools required by pana
+      id: webp-check
+      shell: bash
+      run: |
+        missing=false
+        for tool in cwebp dwebp gif2webp webpmux webpinfo; do
+          command -v "$tool" >/dev/null 2>&1 || missing=true
+        done
+        echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+    - name: Install webp tools required by pana
+      if: steps.webp-check.outputs.missing == 'true' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y --no-install-recommends webp
+
+    - name: Warn about missing webp tools
+      if: steps.webp-check.outputs.missing == 'true' && runner.os != 'Linux'
+      shell: bash
+      run: |
+        echo "::warning title=pana score::cwebp, dwebp, gif2webp, webpmux, and webpinfo are not on PATH, and this action only installs them automatically on Linux runners. pana's screenshot scoring may fail or produce incorrect deductions; install libwebp's command-line tools yourself (e.g. 'brew install webp' on macOS)."
+
     - name: Install pana
       shell: bash
       run: |
