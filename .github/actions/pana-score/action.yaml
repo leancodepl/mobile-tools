@@ -26,7 +26,29 @@ runs:
   using: composite
 
   steps:
+    # Avoids re-downloading (and colliding with leftover files) when Dart is already up to date.
+    - name: Check for an up-to-date stable Dart SDK
+      id: dart-check
+      shell: bash
+      run: |
+        latest="$(curl -fsSL https://storage.googleapis.com/dart-archive/channels/stable/release/latest/VERSION | jq -r '.version' || true)"
+        version_line="$(dart --version 2>&1 || true)"
+        current="$(awk '{print $4}' <<< "$version_line")"
+        channel="$(awk '{print $5}' <<< "$version_line" | tr -d '()')"
+
+        up_to_date=false
+        if [ -n "$latest" ] && [ "$channel" = "stable" ] && [ "$current" = "$latest" ]; then
+          up_to_date=true
+        fi
+        echo "up-to-date=$up_to_date" >> "$GITHUB_OUTPUT"
+
+    - name: Clear stale Dart SDK download
+      if: steps.dart-check.outputs.up-to-date != 'true'
+      shell: bash
+      run: rm -f "$RUNNER_TEMP"/dartsdk-*.zip
+
     - name: Set up stable Dart for pana
+      if: steps.dart-check.outputs.up-to-date != 'true'
       uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
       with:
         sdk: stable # the score has to be the one pub.dev will give
