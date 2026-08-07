@@ -2,7 +2,13 @@
 
 Self-contained composite action that:
 
-- sets up stable Dart (pub.dev-compatible scoring runtime),
+- sets up a pub.dev-compatible scoring runtime: stable Dart, or stable
+  Flutter for packages that declare `sdk: flutter` in `pubspec.yaml` (pana
+  shells out to `flutter pub` for those, and fails hard without it),
+- installs the `webp` command-line tools (`cwebp`, `dwebp`, `gif2webp`,
+  `webpmux`, `webpinfo`) pana needs to score example/README screenshots —
+  see [dart-lang/pana#1553](https://github.com/dart-lang/pana/issues/1553)
+  (Linux runners only; other runners get a warning instead),
 - installs and runs `pana --json`,
 - exposes `score` and `state` outputs,
 - writes Markdown details to `$GITHUB_STEP_SUMMARY`,
