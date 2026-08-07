@@ -26,12 +26,7 @@ runs:
   using: composite
 
   steps:
-    # dart-lang/setup-dart downloads to a fixed filename under $RUNNER_TEMP and
-    # doesn't clean it up, so calling this action more than once in the same
-    # job (e.g. scoring several packages) makes the second install collide
-    # with the first's leftover zip. Only (re)install when what's on PATH
-    # isn't already the latest stable SDK, and clear any stale download
-    # first so a reinstall can't collide with itself either.
+    # Avoids re-downloading (and colliding with leftover files) when Dart is already up to date.
     - name: Check for an up-to-date stable Dart SDK
       id: dart-check
       shell: bash
