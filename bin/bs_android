@@ -13,6 +13,7 @@ set -uo pipefail
 BS_CREDENTIALS="${BS_CREDENTIALS:-}"
 BS_PROJECT="${BS_PROJECT:-}"
 BS_ANDROID_DEVICES="${BS_ANDROID_DEVICES:-}"
+BS_BUILD_NAME="${BS_BUILD_NAME:-}"
 BS_SKIP_BUILD="${BS_SKIP_BUILD:-0}"
 BS_IDLE_TIMEOUT="${BS_IDLE_TIMEOUT:-900}"
 
@@ -111,6 +112,12 @@ echo 1>&2 "Uploaded test instrumentation app, url: $test_url"
 
 # https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
 printf 1>&2 "Will schedule test execution\n\n"
+
+custom_build_name_field=""
+if [ -n "$BS_BUILD_NAME" ]; then
+	custom_build_name_field="\"customBuildName\": \"$BS_BUILD_NAME\","
+fi
+
 if ! run_response="$(
 	curl --fail-with-body --user "$BS_CREDENTIALS" \
 		--request POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
@@ -120,6 +127,7 @@ if ! run_response="$(
     "app": "$app_url",
     "testSuite": "$test_url",
     "project": "$BS_PROJECT",
+    $custom_build_name_field
     "devices": $BS_ANDROID_DEVICES,
     "singleRunnerInvocation": "true",
     "useOrchestrator": "true",

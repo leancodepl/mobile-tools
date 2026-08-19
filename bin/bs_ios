@@ -16,6 +16,9 @@ set -uo pipefail
 BS_CREDENTIALS="${BS_CREDENTIALS:-}"
 BS_PROJECT="${BS_PROJECT:-}"
 BS_IOS_DEVICES="${BS_IOS_DEVICES:-}"
+# BrowserStack's xcuitest v2 endpoint has no field for a custom build name, so this is used to set the ipa filename
+# instead. BrowserStack builds the build name based on the ipa name + app version: e.g. `BS_BUILD_NAME.ipa v1.0.0"
+BS_BUILD_NAME="${BS_BUILD_NAME:-}"
 BS_SKIP_BUILD="${BS_SKIP_BUILD:-0}"
 BS_IDLE_TIMEOUT="${BS_IDLE_TIMEOUT:-900}"
 
@@ -81,7 +84,10 @@ cd build/ios_integ/Build/Products || exit 1
 
 rm -rf Payload && mkdir -p Payload
 cp -r "Release${FLAVOR_SUFFIXED}iphoneos/Runner.app" Payload
-zip -r Runner.ipa Payload >/dev/null
+
+# The ipa filename doubles as the "build name" shown by BrowserStack, see BS_BUILD_NAME above.
+ipa_filename="${BS_BUILD_NAME:-Runner}.ipa"
+zip -r "$ipa_filename" Payload >/dev/null
 
 cd - >/dev/null || exit 1
 
@@ -97,7 +103,7 @@ cd - >/dev/null || exit 1
 
 echo 1>&2 "Created zip archive"
 
-app_path="$PWD/build/ios_integ/Build/Products/Runner.ipa"
+app_path="$PWD/build/ios_integ/Build/Products/$ipa_filename"
 if [ ! -f "$app_path" ]; then
 	echo 1>&2 "Error: app under test not found at $app_path"
 	exit 1
