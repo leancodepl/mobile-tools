@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+#
+# patrol-bs - A unified CLI for BrowserStack mobile app testing
+#
+# Usage: patrol-bs <command> [options]
+#
+# Commands:
+#   android    Build and upload Android APKs to BrowserStack
+#   ios        Build and upload iOS apps to BrowserStack
+#   outputs    Get outputs from a BrowserStack build
+#
+# Run 'patrol-bs <command> --help' for command-specific help.
+#
+
+set -o pipefail
+
+# Resolve script directory for sourcing libraries
+PATROL_BS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATROL_BS_DIR
+
+# Source the shared library
+# shellcheck source=./patrol-bs-lib
+if [[ -f "$PATROL_BS_DIR/patrol-bs-lib" ]]; then
+    source "$PATROL_BS_DIR/patrol-bs-lib"
+else
+    echo "Error: patrol-bs-lib not found in $PATROL_BS_DIR" >&2
+    exit 1
+fi
+
+# =============================================================================
+# MAIN HELP
+# =============================================================================
+
+show_main_help() {
+    cat <<'EOF'
+patrol-bs - A unified CLI for BrowserStack mobile app testing
+
+USAGE:
+    patrol-bs <command> [options]
+
+COMMANDS:
+    android     Build and upload Android APKs to BrowserStack
+    ios         Build and upload iOS apps to BrowserStack
+    outputs     Get outputs/artifacts from a BrowserStack build
+
+GLOBAL OPTIONS:
+    -h, --help      Show this help message
+    --version       Show version information
+
+CONFIGURATION:
+    Configuration is loaded in order (later overrides earlier):
+    1. Built-in defaults
+    2. Environment variables (PATROL_BS_*)
+    3. Command-line arguments
+
+ENVIRONMENT VARIABLES:
+    PATROL_BS_CREDENTIALS           BrowserStack credentials (username:access_key)
+    PATROL_BS_ANDROID_DEVICES       JSON array of Android devices
+    PATROL_BS_IOS_DEVICES           JSON array of iOS devices
+    PATROL_BS_ANDROID_API_PARAMS    Android API parameters (JSON)
+    PATROL_BS_IOS_API_PARAMS        iOS API parameters (JSON)
+
+EXAMPLES:
+    patrol-bs android --target patrol_test/app_test.dart
+    patrol-bs ios --devices '["iPhone 15-17"]'
+    patrol-bs outputs abc123-build-id --verbose
+
+For command-specific help, run:
+    patrol-bs <command> --help
+EOF
+}
+
+show_version() {
+    echo "patrol-bs version 1.0.0"
+}
+
+# =============================================================================
+# COMMAND ROUTING
+# =============================================================================
+
+main() {
+    # Handle no arguments
+    if [[ $# -eq 0 ]]; then
+        show_main_help
+        exit 0
+    fi
+
+    local command="$1"
+    shift
+
+    case "$command" in
+        android)
+            source "$PATROL_BS_DIR/patrol-bs-android"
+            cmd_android "$@"
+            ;;
+        ios)
+            source "$PATROL_BS_DIR/patrol-bs-ios"
+            cmd_ios "$@"
+            ;;
+        outputs)
+            source "$PATROL_BS_DIR/patrol-bs-outputs"
+            cmd_outputs "$@"
+            ;;
+        -h|--help)
+            show_main_help
+            exit 0
+            ;;
+        --version)
+            show_version
+            exit 0
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo "Run 'patrol-bs --help' for usage information." >&2
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
+

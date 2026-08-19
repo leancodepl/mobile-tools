@@ -1,0 +1,413 @@
+#!/usr/bin/env bash
+#
+# patrol-bs-outputs - Outputs subcommand for patrol-bs
+#
+# This file is sourced by patrol-bs and should not be executed directly.
+#
+
+# =============================================================================
+# HELP
+# =============================================================================
+
+show_outputs_help() {
+    cat <<'EOF'
+patrol-bs outputs - Get outputs and artifacts from a BrowserStack build
+
+USAGE:
+    patrol-bs outputs <build_id> [options]
+
+ARGUMENTS:
+    build_id                    The BrowserStack build ID to fetch outputs for
+
+OPTIONS:
+    --credentials <user:key>    BrowserStack credentials
+    --output-dir <path>         Directory to save outputs (default: current directory)
+    --only-report               Only check build status, don't download artifacts
+    --retry-limit <n>           Max retry attempts for downloads (default: 5)
+    --retry-delay <seconds>     Delay between retries (default: 30)
+    -v, --verbose               Verbose output
+    -h, --help                  Show this help message
+
+ENVIRONMENT VARIABLES:
+    PATROL_BS_CREDENTIALS       BrowserStack credentials
+
+OUTPUT FILES:
+    The following files are downloaded to the output directory:
+    - {platform}_instrumentation_logs.txt
+    - {platform}_device_logs.txt
+    - {platform}_session_video.mp4
+    - ios_xcresult_report.zip (iOS only)
+    - android_xml_report.xml (Android only)
+
+EXIT CODES:
+    0   - Build passed
+    1   - Build failed (test failures)
+    2   - Invalid arguments or usage error
+    3   - Build error (infrastructure issue)
+    4   - Build timed out
+    5   - Build skipped
+
+EXAMPLES:
+    # Get all outputs
+    patrol-bs outputs abc123-build-id
+
+    # Check status only
+    patrol-bs outputs abc123-build-id --only-report
+
+    # Custom output directory
+    patrol-bs outputs abc123-build-id --output-dir ./test-results
+EOF
+}
+
+# =============================================================================
+# OUTPUT-SPECIFIC FUNCTIONS
+# =============================================================================
+
+# Validate xcresult file
+validate_xcresult() {
+    local file="$1"
+    
+    # Check if file exists and is not empty
+    if [[ ! -f "$file" || ! -s "$file" ]]; then
+        log_warn "xcresult file is missing or empty"
+        return 1
+    fi
+    
+    # Check if it's a valid zip file
+    if ! unzip -t "$file" >/dev/null 2>&1; then
+        log_warn "xcresult file is corrupted or not a valid zip"
+        return 1
+    fi
+    
+    # Check if it contains expected xcresult structure
+    if ! unzip -l "$file" 2>/dev/null | grep -q "Info.plist"; then
+        log_warn "xcresult file doesn't contain Info.plist"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Retry operation with optional validation
+retry_download() {
+    local url="$1"
+    local output_file="$2"
+    local max_attempts="$3"
+    local sleep_seconds="$4"
+    local validation_func="${5:-}"
+    
+    local attempt=1
+    while true; do
+        if curl --fail-with-body --silent --user "$CREDENTIALS" \
+            --request GET "$url" \
+            --output "$output_file"; then
+            
+            # Run validation if provided
+            if [[ -n "$validation_func" ]]; then
+                if ! "$validation_func" "$output_file"; then
+                    log_warn "Validation failed for $output_file"
+                else
+                    return 0
+                fi
+            else
+                return 0
+            fi
+        fi
+        
+        if [[ $attempt -ge $max_attempts ]]; then
+            log_error "Download failed after $max_attempts attempts: $output_file"
+            return 1
+        fi
+        
+        log_warn "Attempt $attempt failed, retrying in $sleep_seconds seconds..."
+        ((attempt++))
+        sleep "$sleep_seconds"
+    done
+}
+
+# =============================================================================
+# ARGUMENT PARSING
+# =============================================================================
+
+parse_outputs_args() {
+    BUILD_ID=""
+    OUTPUT_DIR="."
+    ONLY_REPORT=false
+    VERBOSE=false
+    RETRY_LIMIT=5
+    RETRY_DELAY=30
+    SHOW_HELP=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                SHOW_HELP=true
+                return 1
+                ;;
+            --credentials)
+                shift
+                CREDENTIALS="${1:-}"
+                ;;
+            --output-dir)
+                shift
+                OUTPUT_DIR="${1:-.}"
+                ;;
+            --only-report)
+                ONLY_REPORT=true
+                ;;
+            --retry-limit)
+                shift
+                RETRY_LIMIT="${1:-5}"
+                ;;
+            --retry-delay)
+                shift
+                RETRY_DELAY="${1:-30}"
+                ;;
+            -v|--verbose)
+                VERBOSE=true
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$BUILD_ID" ]]; then
+                    BUILD_ID="$1"
+                else
+                    log_error "Unexpected argument: $1"
+                    return 1
+                fi
+                ;;
+        esac
+        shift
+    done
+    
+    if [[ -z "$BUILD_ID" ]]; then
+        log_error "Build ID is required"
+        return 1
+    fi
+    
+    return 0
+}
+
+# =============================================================================
+# MAIN COMMAND
+# =============================================================================
+
+cmd_outputs() {
+    # Parse arguments
+    if ! parse_outputs_args "$@"; then
+        show_outputs_help
+        if [[ "$SHOW_HELP" == true ]]; then
+            exit 0
+        else
+            exit 2
+        fi
+    fi
+    
+    # Validate
+    require_credentials
+    require_command "jq"
+    require_command "curl"
+    
+    log_info "Build ID: $BUILD_ID"
+    
+    # Detect platform by trying both endpoints
+    log_step "Detecting platform..."
+    
+    local framework=""
+    local platform=""
+    local build_data_response=""
+    
+    # Try XCUITest (iOS) first
+    local xcuitest_response
+    xcuitest_response=$(bs_api GET "/app-automate/xcuitest/v2/builds/$BUILD_ID" 2>/dev/null) || true
+    local xcuitest_error
+    xcuitest_error=$(echo "$xcuitest_response" | jq --raw-output '.error.message // empty' 2>/dev/null)
+    
+    if [[ -z "$xcuitest_error" && -n "$xcuitest_response" ]]; then
+        framework="xcuitest"
+        platform="ios"
+        build_data_response="$xcuitest_response"
+    else
+        # Try Espresso (Android)
+        local espresso_response
+        espresso_response=$(bs_api GET "/app-automate/espresso/v2/builds/$BUILD_ID" 2>/dev/null) || true
+        local espresso_error
+        espresso_error=$(echo "$espresso_response" | jq --raw-output '.error.message // empty' 2>/dev/null)
+        
+        if [[ -z "$espresso_error" && -n "$espresso_response" ]]; then
+            framework="espresso"
+            platform="android"
+            build_data_response="$espresso_response"
+        else
+            log_error "Build not found in either XCUITest or Espresso"
+            [[ -n "$xcuitest_error" ]] && log_info "XCUITest error: $xcuitest_error"
+            [[ -n "$espresso_error" ]] && log_info "Espresso error: $espresso_error"
+            exit 1
+        fi
+    fi
+    
+    log_info "Platform: $platform ($framework)"
+    
+    # Wait for build to complete
+    local build_status
+    build_status=$(echo "$build_data_response" | jq --raw-output .status)
+    
+    while [[ "$build_status" == "queued" || "$build_status" == "running" ]]; do
+        log_info "Build is $build_status, waiting..."
+        sleep 60
+        
+        build_data_response=$(bs_api GET "/app-automate/$framework/v2/builds/$BUILD_ID")
+        build_status=$(echo "$build_data_response" | jq --raw-output .status)
+    done
+    
+    if [[ "$VERBOSE" == true ]]; then
+        echo "Build details:" >&2
+        echo "$build_data_response" | jq >&2
+    fi
+    
+    # Get session ID
+    local session_id
+    session_id=$(echo "$build_data_response" | jq --raw-output '.devices[0].sessions[0].id')
+    
+    if [[ -z "$session_id" || "$session_id" == "null" ]]; then
+        log_error "Could not find session ID in build data"
+        exit 1
+    fi
+    
+    # Helper function to exit with appropriate code
+    exit_with_status() {
+        echo "" >&2
+        case "$build_status" in
+            passed)
+                echo -e "${GREEN}[OK] Build PASSED${NC}" >&2
+                exit 0
+                ;;
+            failed)
+                echo -e "${RED}[ERROR] Build FAILED${NC} (test failures)" >&2
+                exit 1
+                ;;
+            error)
+                echo -e "${RED}[ERROR] Build ERROR${NC} (infrastructure issue)" >&2
+                exit 3
+                ;;
+            timedout)
+                echo -e "${YELLOW}[WARN] Build TIMEOUT${NC}" >&2
+                exit 4
+                ;;
+            skipped)
+                echo -e "${YELLOW}[WARN] Build SKIPPED${NC}" >&2
+                exit 5
+                ;;
+            *)
+                echo -e "${YELLOW}[WARN] Build status: $build_status${NC}" >&2
+                exit 1
+                ;;
+        esac
+    }
+    
+    # If only-report mode, exit now
+    if [[ "$ONLY_REPORT" == true ]]; then
+        exit_with_status
+    fi
+    
+    # Get session details
+    log_step "Getting session details..."
+    
+    local session_response
+    if ! session_response=$(bs_api GET "/app-automate/$framework/v2/builds/$BUILD_ID/sessions/$session_id"); then
+        log_error "Failed to get session details"
+        echo "$session_response" >&2
+        exit 1
+    fi
+    
+    if [[ "$VERBOSE" == true ]]; then
+        echo "Session details:" >&2
+        echo "$session_response" | jq >&2
+    fi
+    
+    # Create output directory
+    mkdir -p "$OUTPUT_DIR"
+    cd "$OUTPUT_DIR" || exit 1
+    
+    local download_errors=0
+    
+    # Extract log URLs
+    local instrumentation_logs_url
+    local device_logs_url
+    instrumentation_logs_url=$(echo "$session_response" | jq --raw-output '.testcases.data[0].testcases[0].instrumentation_log // empty')
+    device_logs_url=$(echo "$session_response" | jq --raw-output '.testcases.data[0].testcases[0].device_log // empty')
+    
+    # Download instrumentation logs
+    if [[ -n "$instrumentation_logs_url" && "$instrumentation_logs_url" != "null" ]]; then
+        log_step "Downloading instrumentation logs..."
+        if ! retry_download "$instrumentation_logs_url" "${platform}_instrumentation_logs.txt" "$RETRY_LIMIT" "$RETRY_DELAY"; then
+            ((download_errors++))
+        else
+            log_success "Saved ${platform}_instrumentation_logs.txt"
+        fi
+    fi
+    
+    # Download device logs
+    if [[ -n "$device_logs_url" && "$device_logs_url" != "null" ]]; then
+        log_step "Downloading device logs..."
+        if ! retry_download "$device_logs_url" "${platform}_device_logs.txt" "$RETRY_LIMIT" "$RETRY_DELAY"; then
+            ((download_errors++))
+        else
+            log_success "Saved ${platform}_device_logs.txt"
+        fi
+    fi
+    
+    # Download session video
+    log_step "Downloading session video..."
+    
+    local video_response
+    video_response=$(bs_api GET "/app-automate/sessions/$session_id.json" 2>/dev/null) || true
+    local video_url
+    video_url=$(echo "$video_response" | jq --raw-output '.automation_session.video_url // empty')
+    
+    if [[ -n "$video_url" && "$video_url" != "null" ]]; then
+        if ! curl --fail-with-body --silent --request GET "$video_url" --output "${platform}_session_video.mp4"; then
+            log_warn "Failed to download session video"
+            ((download_errors++))
+        else
+            log_success "Saved ${platform}_session_video.mp4"
+        fi
+    else
+        log_warn "No video URL available"
+    fi
+    
+    # Download report (platform-specific)
+    log_step "Downloading test report..."
+    
+    if [[ "$framework" == "xcuitest" ]]; then
+        local report_url="https://api-cloud.browserstack.com/app-automate/xcuitest/v2/builds/$BUILD_ID/sessions/$session_id/resultbundle"
+        if ! retry_download "$report_url" "ios_xcresult_report.zip" "$RETRY_LIMIT" "$RETRY_DELAY" "validate_xcresult"; then
+            ((download_errors++))
+        else
+            log_success "Saved ios_xcresult_report.zip"
+        fi
+    else
+        local report_url="https://api-cloud.browserstack.com/app-automate/espresso/builds/$BUILD_ID/sessions/$session_id/report"
+        if ! retry_download "$report_url" "android_xml_report.xml" "$RETRY_LIMIT" "$RETRY_DELAY"; then
+            ((download_errors++))
+        else
+            log_success "Saved android_xml_report.xml"
+        fi
+    fi
+    
+    # Check for download errors
+    if [[ $download_errors -gt 0 ]]; then
+        log_warn "$download_errors download(s) failed"
+    fi
+    
+    if [[ "$OUTPUT_DIR" == "." ]]; then
+        log_success "Outputs saved to current directory"
+    else
+        log_success "Outputs saved to: $OUTPUT_DIR"
+    fi
+    
+    exit_with_status
+}
+

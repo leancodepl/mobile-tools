@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+#
+# patrol-bs-android - Android subcommand for patrol-bs
+#
+# This file is sourced by patrol-bs and should not be executed directly.
+#
+
+# =============================================================================
+# DEFAULTS
+# =============================================================================
+
+DEFAULT_ANDROID_DEVICES='["Google Pixel 8-14.0"]'
+
+# =============================================================================
+# HELP
+# =============================================================================
+
+show_android_help() {
+    cat <<EOF
+patrol-bs android - Build and upload Android APKs to BrowserStack
+
+USAGE:
+    patrol-bs android [options] [-- patrol_args...]
+
+OPTIONS:
+    --credentials <user:key>    BrowserStack credentials
+    --devices <json>            JSON array of devices to test on
+    --flavor <name>             Build flavor
+    --skip-build                Skip building, only upload existing APKs
+    --api-params <json>         Parameters for "Execute a build" API
+                                https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build
+    -h, --help                  Show this help message
+
+    Any other arguments are passed through to 'patrol build android'.
+
+ENVIRONMENT VARIABLES:
+    PATROL_BS_CREDENTIALS          BrowserStack credentials
+    PATROL_BS_ANDROID_DEVICES      Default devices JSON array
+    PATROL_BS_ANDROID_API_PARAMS   Default API parameters JSON
+
+DEFAULT DEVICES:
+    If not specified, uses: $DEFAULT_ANDROID_DEVICES
+
+EXAMPLES:
+    # Basic usage with target
+    patrol-bs android --target patrol_test/app_test.dart
+
+    # With specific devices and flavor
+    patrol-bs android --devices '["Samsung Galaxy S24-14.0"]' --flavor dev
+
+    # Skip build (use existing APKs)
+    patrol-bs android --skip-build
+
+    # Pass arguments to patrol
+    patrol-bs android -- --exclude some_test.dart
+
+    # Use sharding with custom API params
+    patrol-bs android --api-params '{"shards": {"numberOfShards": 4}}'
+EOF
+}
+
+# =============================================================================
+# MAIN COMMAND
+# =============================================================================
+
+cmd_android() {
+    # Set Android-specific defaults if not set by env
+    : "${ANDROID_DEVICES:=$DEFAULT_ANDROID_DEVICES}"
+    : "${API_PARAMS:=${PATROL_BS_ANDROID_API_PARAMS:-}}"
+    
+    # Parse arguments
+    if ! parse_build_args "android" "$@"; then
+        show_android_help
+        exit 0
+    fi
+    
+    # Validate required settings
+    require_credentials
+    require_command "jq"
+    require_command "curl"
+    
+    # Build flavor-specific paths
+    local flavor_separator="-"
+    local flavor_dir="/"
+    if [[ -n "$FLAVOR" ]]; then
+        flavor_separator="-$FLAVOR-"
+        flavor_dir="/$FLAVOR/"
+    fi
+    
+    # Log configuration
+    log_info "Devices: $ANDROID_DEVICES"
+    [[ -n "$FLAVOR" ]] && log_info "Flavor: $FLAVOR"
+    [[ -n "$API_PARAMS" ]] && log_info "API params: $API_PARAMS"
+    
+    # Build the app
+    if [[ "$SKIP_BUILD" != 1 ]]; then
+        log_step "Building Android app..."
+        
+        if ! patrol build android "${PATROL_ARGS[@]:-}" >&2; then
+            log_error "Build failed"
+            exit 1
+        fi
+    else
+        log_info "Skipping build (--skip-build)"
+    fi
+    
+    # Find APK files
+    log_step "Locating APK files..."
+    
+    local app_apk
+    app_apk=$(find "$PWD" -name "app${flavor_separator}debug.apk" -path "*/outputs/apk/*" 2>/dev/null | head -1)
+    
+    if [[ -z "$app_apk" || ! -f "$app_apk" ]]; then
+        # Try alternative path structure
+        app_apk=$(find "$PWD" -name "app${flavor_separator}debug.apk" -path "*${flavor_dir}debug/*" 2>/dev/null | head -1)
+    fi
+    
+    if [[ -z "$app_apk" || ! -f "$app_apk" ]]; then
+        log_error "Could not find main app APK"
+        log_info "Expected pattern: app${flavor_separator}debug.apk in */outputs/apk/*"
+        exit 1
+    fi
+    
+    log_info "Found app APK: $app_apk"
+    
+    local test_apk
+    test_apk=$(find "$PWD" -name "app${flavor_separator}debug-androidTest.apk" -path "*/outputs/apk/*" 2>/dev/null | head -1)
+    
+    if [[ -z "$test_apk" || ! -f "$test_apk" ]]; then
+        # Try alternative path structure
+        test_apk=$(find "$PWD" -name "app${flavor_separator}debug-androidTest.apk" -path "*androidTest${flavor_dir}debug/*" 2>/dev/null | head -1)
+    fi
+    
+    if [[ -z "$test_apk" || ! -f "$test_apk" ]]; then
+        log_error "Could not find test APK"
+        log_info "Expected pattern: app${flavor_separator}debug-androidTest.apk in */outputs/apk/*"
+        exit 1
+    fi
+    
+    log_info "Found test APK: $test_apk"
+    
+    # Upload app APK
+    log_step "Uploading app APK..."
+    
+    local app_response
+    if ! app_response=$(bs_upload "/app-automate/espresso/v2/app" "$app_apk"); then
+        log_error "Failed to upload app APK"
+        echo "$app_response" >&2
+        exit 1
+    fi
+    
+    local app_url
+    app_url=$(echo "$app_response" | jq --raw-output .app_url)
+    log_success "Uploaded app: $app_url"
+    
+    # Upload test APK
+    log_step "Uploading test APK..."
+    
+    local test_response
+    if ! test_response=$(bs_upload "/app-automate/espresso/v2/test-suite" "$test_apk"); then
+        log_error "Failed to upload test APK"
+        echo "$test_response" >&2
+        exit 1
+    fi
+    
+    local test_url
+    test_url=$(echo "$test_response" | jq --raw-output .test_suite_url)
+    log_success "Uploaded test: $test_url"
+    
+    # Schedule test execution
+    log_step "Scheduling test execution..."
+    
+    # Build payload
+    local payload
+    payload=$(cat <<EOF
+{
+    "app": "$app_url",
+    "testSuite": "$test_url",
+    "devices": $ANDROID_DEVICES,
+    "singleRunnerInvocation": true,
+    "useOrchestrator": true,
+    "clearPackageData": true,
+    "deviceLogs": true,
+    "enableResultBundle": true
+}
+EOF
+    )
+    
+    # Merge with custom API params if provided
+    if [[ -n "$API_PARAMS" ]]; then
+        payload=$(echo "$payload" | jq --argjson extra "$API_PARAMS" '. * $extra')
+    fi
+    
+    local run_response
+    if ! run_response=$(bs_api POST "/app-automate/espresso/v2/build" \
+        -H "Content-Type: application/json" \
+        --data-binary @- <<< "$payload"); then
+        log_error "Failed to schedule test execution"
+        echo "$run_response" >&2
+        exit 1
+    fi
+    
+    # Extract build ID
+    local build_id
+    build_id=$(echo "$run_response" | jq --raw-output .build_id)
+    
+    log_success "Test execution scheduled"
+    echo "" >&2
+    echo "  Dashboard: https://app-automate.browserstack.com/dashboard/v2/builds/$build_id" >&2
+    echo "Build ID: $build_id" >&2
+    # Output build ID to stdout for scripting (must be last line)
+    echo "$build_id"
+}

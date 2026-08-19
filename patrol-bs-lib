@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+#
+# patrol-bs-lib - Shared library for patrol-bs CLI
+#
+# This file is sourced by patrol-bs and its subcommands.
+# It provides common functions for configuration, logging, and API interactions.
+#
+
+# =============================================================================
+# CONFIGURATION DEFAULTS
+# =============================================================================
+
+# These can be overridden by environment variables or CLI args
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+CREDENTIALS="${PATROL_BS_CREDENTIALS:-}"
+
+# Platform-specific defaults
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+ANDROID_DEVICES="${PATROL_BS_ANDROID_DEVICES:-}"
+IOS_DEVICES="${PATROL_BS_IOS_DEVICES:-}"
+
+# Build settings
+# shellcheck disable=SC2034  # Variables are used by sourcing scripts
+SKIP_BUILD="${PATROL_BS_SKIP_BUILD:-0}"
+FLAVOR=""
+API_PARAMS=""
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+
+# ANSI color codes (disabled if not a terminal)
+if [[ -t 2 ]]; then
+    readonly RED='\033[0;31m'
+    readonly GREEN='\033[0;32m'
+    readonly YELLOW='\033[0;33m'
+    readonly BLUE='\033[0;34m'
+    readonly NC='\033[0m' # No Color
+else
+    readonly RED=''
+    readonly GREEN=''
+    readonly YELLOW=''
+    readonly BLUE=''
+    readonly NC=''
+fi
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $*" >&2
+}
+
+log_success() {
+    echo -e "${GREEN}[OK]${NC} $*" >&2
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $*" >&2
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $*" >&2
+}
+
+log_step() {
+    echo -e "\n${BLUE}==>${NC} $*" >&2
+}
+
+# =============================================================================
+# VALIDATION
+# =============================================================================
+
+require_credentials() {
+    if [[ -z "$CREDENTIALS" ]]; then
+        log_error "BrowserStack credentials not set"
+        echo "Set via: --credentials or PATROL_BS_CREDENTIALS env var" >&2
+        exit 1
+    fi
+}
+
+validate_json_array() {
+    local value="$1"
+    local name="$2"
+    
+    if ! echo "$value" | jq empty 2>/dev/null; then
+        log_error "$name must be a valid JSON array"
+        exit 1
+    fi
+}
+
+# =============================================================================
+# ARGUMENT PARSING HELPERS
+# =============================================================================
+
+# Parse common build arguments that apply to both android and ios
+# This function processes arguments and sets global variables
+# Remaining arguments are stored in PATROL_ARGS array
+parse_build_args() {
+    local platform="$1"
+    shift
+    
+    # Initialize arrays
+    # shellcheck disable=SC2034  # Variables are used by sourcing scripts
+    PATROL_ARGS=()
+    
+    while [[ $# -gt 0 ]]; do
+        # shellcheck disable=SC2034  # Variables are used by sourcing scripts
+        case "$1" in
+            -h|--help)
+                return 1  # Signal to show help
+                ;;
+            --credentials)
+                shift
+                CREDENTIALS="${1:-}"
+                ;;
+            --devices)
+                shift
+                # Set platform-specific devices variable
+                if [[ "$platform" == "android" ]]; then
+                    ANDROID_DEVICES="${1:-}"
+                else
+                    IOS_DEVICES="${1:-}"
+                fi
+                ;;
+            --flavor)
+                shift
+                FLAVOR="${1:-}"
+                ;;
+            --skip-build)
+                SKIP_BUILD=1
+                ;;
+            --api-params)
+                shift
+                API_PARAMS="${1:-}"
+                ;;
+            *)
+                # Pass through to patrol command
+                PATROL_ARGS+=("$1")
+                ;;
+        esac
+        shift
+    done
+    
+    return 0
+}
+
+# =============================================================================
+# API HELPERS
+# =============================================================================
+
+# Retry wrapper for API calls
+# Usage: retry_api <max_attempts> <sleep_seconds> <command>
+retry_api() {
+    local max_attempts="$1"
+    local sleep_seconds="$2"
+    shift 2
+    local command="$*"
+    
+    local attempt=1
+    while true; do
+        if eval "$command"; then
+            return 0
+        fi
+        
+        if [[ $attempt -ge $max_attempts ]]; then
+            log_error "Operation failed after $max_attempts attempts"
+            return 1
+        fi
+        
+        log_warn "Attempt $attempt failed, retrying in $sleep_seconds seconds..."
+        ((attempt++))
+        sleep "$sleep_seconds"
+    done
+}
+
+# Make a BrowserStack API request
+# Usage: bs_api <method> <endpoint> [curl_args...]
+bs_api() {
+    local method="$1"
+    local endpoint="$2"
+    shift 2
+    
+    curl --fail-with-body --silent \
+        --user "$CREDENTIALS" \
+        --request "$method" \
+        "https://api-cloud.browserstack.com$endpoint" \
+        "$@"
+}
+
+# Upload a file to BrowserStack
+# Usage: bs_upload <endpoint> <file_path>
+bs_upload() {
+    local endpoint="$1"
+    local file_path="$2"
+    
+    curl --fail-with-body \
+        --user "$CREDENTIALS" \
+        --request POST \
+        "https://api-cloud.browserstack.com$endpoint" \
+        --form "file=@$file_path"
+}
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+# Check if a command exists
+require_command() {
+    local cmd="$1"
+    local install_hint="${2:-}"
+    
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        log_error "Required command not found: $cmd"
+        if [[ -n "$install_hint" ]]; then
+            echo "Install with: $install_hint" >&2
+        fi
+        exit 1
+    fi
+}
+
+# Find a file matching a pattern
+find_file() {
+    local pattern="$1"
+    local search_path="${2:-$PWD}"
+    
+    find "$search_path" -name "$pattern" 2>/dev/null | head -1
+}
+

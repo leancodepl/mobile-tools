@@ -13,6 +13,62 @@ All useful scripts gathered in one place.
 To learn more about programs, see their source code. They should have an
 extensive comment at the top of the file.
 
+---
+
+### patrol-bs
+
+A unified CLI for BrowserStack mobile app testing. Supports building and uploading Android/iOS apps, and fetching test outputs.
+
+#### Quick Start
+
+```bash
+# Build and upload Android app
+patrol-bs android --target patrol_test/app_test.dart
+
+# Build and upload iOS app
+patrol-bs ios --devices '["iPhone 16 Pro-18"]'
+
+# Get outputs from a completed build
+patrol-bs outputs abc123-build-id --verbose
+```
+
+#### Commands
+
+| Command | Description |
+|---------|-------------|
+| `android` | Build and upload Android APKs to BrowserStack |
+| `ios` | Build and upload iOS apps to BrowserStack |
+| `outputs` | Get outputs/artifacts from a BrowserStack build |
+
+#### Configuration
+
+Configuration is loaded in order (later overrides earlier):
+1. Built-in defaults
+2. Environment variables (`PATROL_BS_*`)
+3. Command-line arguments
+
+**Environment Variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `PATROL_BS_CREDENTIALS` | BrowserStack credentials (`username:access_key`) |
+| `PATROL_BS_ANDROID_DEVICES` | Default Android devices (JSON array) |
+| `PATROL_BS_IOS_DEVICES` | Default iOS devices (JSON array) |
+
+#### Common Options
+
+| Option | Description |
+|--------|-------------|
+| `--credentials <user:key>` | BrowserStack credentials |
+| `--devices <json>` | Devices to test on (JSON array) |
+| `--flavor <name>` | Build flavor |
+| `--skip-build` | Skip building, only upload |
+| `--api-params <json>` | Parameters for Execute a build API ([Android](https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build) / [iOS](https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build)) |
+
+Run `patrol-bs <command> --help` for command-specific options.
+
+---
+
 ### generate_keystore
 
 Generates a single keystore (`.jks`) file for Android app signing.
