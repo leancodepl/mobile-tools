@@ -90,6 +90,10 @@ rm -rf ios_tests.zip
 
 # BrowserStack fails if DiagnosticCollectionPolicy is present
 plutil -remove 'TestConfigurations.0.TestTargets.0.DiagnosticCollectionPolicy' ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun
+# BrowserStack also rejects these two keys added by Xcode 27 (both must go).
+# Older Xcode versions don't write them, so "No value to remove" is harmless.
+plutil -remove 'TestConfigurations.0.TestTargets.0.IsMemoryTaggingAddressSanitizerEnabled' ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun
+plutil -remove 'TestConfigurations.0.TestTargets.0.ProcessNamesForCrashReportCollection' ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun
 
 cp ../"${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun .
 zip -r ios_tests.zip "${FLAVOR_PREFIXED}"_TestPlan_iphoneos*.xctestrun RunnerUITests-Runner.app >/dev/null
